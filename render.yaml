@@ -2,12 +2,12 @@ services:
   - type: web
     name: modichat-api
     env: node
-    buildCommand: npm run build
-    startCommand: npm start
+    buildCommand: "npm run build"
+    startCommand: "npm start"
     envVars:
       - key: MONGO_URI
-        value: mongodb+srv://thelordrishabh:8uNkCQmkQTYp2ysH@cluster0.s57qasv.mongodb.net/social-app?appName=Cluster0
+        sync_env_var: true
       - key: JWT_SECRET
-        value: supersecretkey_changethis_tomethinglong123
-      - key: PORT
-        value: 10000
+        sync_env_var: true
+      - key: NODE_ENV
+        value: production
