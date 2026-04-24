@@ -79,8 +79,6 @@ if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
 
 const PORT = process.env.PORT || 8080;
 
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => console.log(`✅ Server on port ${PORT}`));
-}
+app.listen(PORT, () => console.log(`✅ Server on port ${PORT}`));
 
 module.exports = app;
