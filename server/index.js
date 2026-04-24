@@ -38,11 +38,17 @@ app.use(async (req, res, next) => {
 
 // Health check route
 app.get('/api/health', (req, res) => {
+  const distPath = path.join(__dirname, '../client/dist');
   res.json({ 
     status: 'ok', 
     dbState: mongoose.connection.readyState,
     dbStatus: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState],
     dbError: lastDbError,
+    debug: {
+      __dirname,
+      distPath,
+      exists: require('fs').existsSync(path.join(distPath, 'index.html'))
+    },
     env: {
       hasMongoUri: !!process.env.MONGO_URI,
       mongoUriPrefix: process.env.MONGO_URI ? process.env.MONGO_URI.substring(0, 15) : 'none',
