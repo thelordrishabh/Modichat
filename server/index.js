@@ -47,7 +47,9 @@ app.get('/api/health', (req, res) => {
     debug: {
       __dirname,
       distPath,
-      exists: require('fs').existsSync(path.join(distPath, 'index.html'))
+      exists: require('fs').existsSync(path.join(distPath, 'index.html')),
+      rootDirContents: require('fs').readdirSync(path.join(__dirname, '..')),
+      clientDirContents: require('fs').existsSync(path.join(__dirname, '../client')) ? require('fs').readdirSync(path.join(__dirname, '../client')) : 'not found'
     },
     env: {
       hasMongoUri: !!process.env.MONGO_URI,
