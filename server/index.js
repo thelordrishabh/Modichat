@@ -63,14 +63,14 @@ app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/messages', messageRoutes);
 
-// Serve static assets ONLY in local production mode (not on Vercel)
-if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
-  const _dirname = path.resolve();
-  app.use(express.static(path.join(_dirname, '../client/dist')));
+// Serve static assets in production (Render)
+if (!process.env.VERCEL) {
+  const distPath = path.join(__dirname, '../client/dist');
+  app.use(express.static(distPath));
 
   app.use((req, res, next) => {
-    if (req.method === 'GET' && !req.path.startsWith('/api')) {
-      res.sendFile(path.resolve(_dirname, '../client/dist', 'index.html'));
+    if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/uploads')) {
+      res.sendFile(path.join(distPath, 'index.html'));
     } else {
       next();
     }
