@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Layout from "../components/Layout";
-import { getConversations, getMessages, sendMessage, BASE_URL } from "../api";
+import { getConversations, getMessages, sendMessage } from "../api";
+import Avatar from "../components/Avatar";
 import { useAuth } from "../context/AuthContext";
 
 export default function Messages() {
@@ -64,10 +65,10 @@ export default function Messages() {
 
   return (
     <Layout>
-      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden h-[80vh] flex mt-4">
+      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden min-h-[75vh] flex flex-col md:flex-row mt-4">
         
         {/* Conversations List */}
-        <div className="w-1/3 border-r border-gray-100 dark:border-gray-700 flex flex-col">
+        <div className={`${currentChat ? 'hidden md:flex' : 'flex'} md:w-1/3 border-r border-gray-100 dark:border-gray-700 flex-col`}>
           <div className="p-4 border-b border-gray-100 dark:border-gray-700">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">{user.name}</h2>
           </div>
@@ -80,13 +81,7 @@ export default function Messages() {
                   onClick={() => setCurrentChat(conv)}
                   className={`p-4 flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition ${currentChat?._id === conv._id ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
                 >
-                  <div className="w-12 h-12 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
-                    {otherUser?.profilePicture ? (
-                      <img src={`${BASE_URL}${otherUser.profilePicture}`} alt="Avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-xl font-bold text-gray-500 dark:text-gray-300">{otherUser?.name[0]}</span>
-                    )}
-                  </div>
+                  <Avatar user={otherUser} size="h-12 w-12" textSize="text-xl" />
                   <div className="font-semibold text-gray-900 dark:text-white truncate">
                     {otherUser?.name}
                   </div>
@@ -97,7 +92,7 @@ export default function Messages() {
         </div>
 
         {/* Chat Window */}
-        <div className="flex-1 flex flex-col bg-gray-50/50 dark:bg-gray-800/50">
+        <div className={`${currentChat ? 'flex' : 'hidden md:flex'} flex-1 flex-col bg-gray-50/50 dark:bg-gray-800/50`}>
           {currentChat ? (
             <>
               {/* Chat Header */}
@@ -106,13 +101,14 @@ export default function Messages() {
                   const otherUser = currentChat.members.find(m => m._id !== user._id);
                   return (
                     <>
-                      <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center overflow-hidden">
-                        {otherUser?.profilePicture ? (
-                          <img src={`${BASE_URL}${otherUser.profilePicture}`} alt="Avatar" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="font-bold text-gray-500 dark:text-gray-300">{otherUser?.name[0]}</span>
-                        )}
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentChat(null)}
+                        className="flex min-h-11 min-w-11 items-center justify-center rounded-2xl bg-gray-100 text-lg text-gray-700 dark:bg-gray-700 dark:text-white md:hidden"
+                      >
+                        ←
+                      </button>
+                      <Avatar user={otherUser} />
                       <span className="font-semibold text-gray-900 dark:text-white">{otherUser?.name}</span>
                     </>
                   );
@@ -152,7 +148,7 @@ export default function Messages() {
                   />
                   <button 
                     type="submit"
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-full transition"
+                    className="min-h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-full transition"
                   >
                     Send
                   </button>

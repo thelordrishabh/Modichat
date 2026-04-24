@@ -27,7 +27,7 @@ export default function Login() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center transition-colors duration-300">
       <button
         onClick={toggleDark}
-        className="fixed top-4 right-4 w-10 h-10 rounded-full bg-white dark:bg-gray-700 shadow-md flex items-center justify-center text-xl hover:scale-110 transition-transform"
+        className="fixed right-4 top-4 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white text-xl shadow-md transition-transform hover:scale-110 dark:bg-gray-700"
       >
         {dark ? "☀️" : "🌙"}
       </button>

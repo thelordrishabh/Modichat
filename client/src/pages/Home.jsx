@@ -1,31 +1,47 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getFeed } from "../api";
 import PostCard from "../components/PostCard";
 import Layout from "../components/Layout";
-import { useAuth } from "../context/AuthContext";
 
 export default function Home() {
-  const { user } = useAuth();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isCancelled = false;
+
     const fetchFeed = async () => {
       try {
         const { data } = await getFeed();
-        setPosts(data);
+        if (!isCancelled) {
+          setPosts(data);
+        }
       } catch (err) {
         console.error("Failed to fetch feed", err);
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     };
+
     fetchFeed();
+
+    const handlePostCreated = () => {
+      fetchFeed();
+    };
+
+    window.addEventListener("modichat:post-created", handlePostCreated);
+
+    return () => {
+      isCancelled = true;
+      window.removeEventListener("modichat:post-created", handlePostCreated);
+    };
   }, []);
 
   return (
     <Layout>
-      <div className="py-6 max-w-lg mx-auto">
+      <div className="mx-auto w-full max-w-xl py-2 md:py-6">
         {loading ? (
           <div className="flex justify-center p-10">
             <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>

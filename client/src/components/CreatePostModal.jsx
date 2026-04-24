@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPost } from "../api";
 import toast from "react-hot-toast";
 
@@ -6,6 +6,21 @@ export default function CreatePostModal({ onClose }) {
   const [file, setFile] = useState(null);
   const [caption, setCaption] = useState("");
   const [loading, setLoading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState("");
+
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl("");
+      return undefined;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [file]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,9 +34,8 @@ export default function CreatePostModal({ onClose }) {
     try {
       await createPost(formData);
       toast.success("Post created successfully!");
+      window.dispatchEvent(new Event("modichat:post-created"));
       onClose();
-      // Optional: trigger a feed refresh
-      window.location.reload(); 
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to create post");
     } finally {
@@ -30,19 +44,19 @@ export default function CreatePostModal({ onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm p-0 md:items-center md:p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-t-3xl md:rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex max-h-[92vh] flex-col">
         <div className="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create new post</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:hover:text-white transition">
+          <button onClick={onClose} className="flex min-h-11 min-w-11 items-center justify-center text-gray-500 hover:text-gray-800 dark:hover:text-white transition">
             ✕
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-4 flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="overflow-y-auto p-4 flex flex-col gap-4">
           <div className="w-full aspect-square bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center relative overflow-hidden group">
             {file ? (
-              <img src={URL.createObjectURL(file)} alt="Preview" className="object-cover w-full h-full" />
+              <img src={previewUrl} alt="Preview" className="object-cover w-full h-full" />
             ) : (
               <div className="text-center p-6 cursor-pointer" onClick={() => document.getElementById("file-upload").click()}>
                 <span className="text-4xl block mb-2">📸</span>
@@ -69,7 +83,7 @@ export default function CreatePostModal({ onClose }) {
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50"
+            className="min-h-11 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50"
           >
             {loading ? "Sharing..." : "Share"}
           </button>

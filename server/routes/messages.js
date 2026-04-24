@@ -28,7 +28,7 @@ router.get('/conversation', auth, async (req, res) => {
   try {
     const conversations = await Conversation.find({
       members: { $in: [req.user.id] }
-    }).populate('members', 'name profilePicture');
+    }).populate('members', 'name username avatar profilePicture');
     res.json(conversations);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -55,7 +55,7 @@ router.get('/:conversationId', auth, async (req, res) => {
   try {
     const messages = await Message.find({
       conversationId: req.params.conversationId
-    }).populate('senderId', 'name profilePicture');
+    }).populate('senderId', 'name username avatar profilePicture');
     res.json(messages);
   } catch (err) {
     res.status(500).json({ message: err.message });

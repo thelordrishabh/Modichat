@@ -2,8 +2,10 @@ const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
+  username: { type: String, trim: true, lowercase: true, unique: true, sparse: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
+  avatar: { type: String, default: "" },
   profilePicture: { type: String, default: "" },
   bio: { type: String, default: "" },
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],

@@ -1,33 +1,93 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const fs = require('fs');
 const path = require('path');
+const { MongoMemoryServer } = require('mongodb-memory-server');
 
 const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/users');
+const notificationRoutes = require('./routes/notifications');
 const postRoutes = require('./routes/posts');
+const searchRoutes = require('./routes/search');
+const userRoutes = require('./routes/users');
 const messageRoutes = require('./routes/messages');
 
 const app = express();
+const isVercel = Boolean(process.env.VERCEL);
+const bundledUploadsDir = path.join(__dirname, 'uploads');
+const runtimeUploadsDir = isVercel ? path.join('/tmp', 'uploads') : bundledUploadsDir;
+
+fs.mkdirSync(runtimeUploadsDir, { recursive: true });
 
 app.use(cors({ origin: '*' }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 let lastDbError = null;
+let hasLoggedMissingMongoUri = false;
+let dbConnectPromise = null;
+let memoryServer = null;
+
+const startMemoryServer = async () => {
+  if (!memoryServer) {
+    memoryServer = await MongoMemoryServer.create();
+  }
+  return memoryServer.getUri();
+};
 
 const connectDB = async () => {
-  if (mongoose.connection.readyState >= 1) return;
-  try {
-    const uri = 'mongodb+srv://thelordrishabh:8uNkCQmkQTYp2ysH@cluster0.s57qasv.mongodb.net/social-app?retryWrites=true&w=majority';
-    await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 5000
-    });
-    console.log('✅ MongoDB connected');
-    lastDbError = null;
-  } catch (err) {
-    lastDbError = err.message;
-    console.error('❌ MongoDB Connection Error:', err.message);
+  if (mongoose.connection.readyState === 1) return;
+  if (dbConnectPromise) {
+    await dbConnectPromise;
+    return;
   }
+
+  dbConnectPromise = (async () => {
+    let uri = process.env.MONGO_URI;
+    let usingFallback = false;
+    let fallbackReason = '';
+
+    if (!uri) {
+      usingFallback = true;
+      fallbackReason = 'MONGO_URI is not set';
+    }
+
+    if (!usingFallback) {
+      try {
+        await mongoose.connect(uri, {
+          serverSelectionTimeoutMS: 5000
+        });
+        console.log('✅ MongoDB connected');
+        lastDbError = null;
+        return;
+      } catch (err) {
+        lastDbError = err.message;
+        usingFallback = true;
+        fallbackReason = err.message;
+        console.warn(`⚠️ MongoDB connection failed, falling back to in-memory MongoDB: ${err.message}`);
+      }
+    }
+
+    if (usingFallback) {
+      if (!hasLoggedMissingMongoUri) {
+        console.warn(`⚠️ ${fallbackReason}. Starting in-memory MongoDB for local development.`);
+        hasLoggedMissingMongoUri = true;
+      }
+
+      uri = await startMemoryServer();
+      await mongoose.connect(uri, {
+        serverSelectionTimeoutMS: 5000
+      });
+      console.log('✅ In-memory MongoDB connected');
+      lastDbError = null;
+    }
+  })()
+    .finally(() => {
+      dbConnectPromise = null;
+    });
+
+  await dbConnectPromise;
 };
 
 // Middleware to ensure DB connection
@@ -37,42 +97,36 @@ app.use(async (req, res, next) => {
 });
 
 // Health check route
-app.get('/api/health', (req, res) => {
-  const distPath = path.join(__dirname, '../client/dist');
-  res.json({ 
-    status: 'ok', 
+app.get('/api/health', async (req, res) => {
+  await connectDB();
+  res.json({
+    status: 'ok',
     dbState: mongoose.connection.readyState,
     dbStatus: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState],
     dbError: lastDbError,
-    debug: {
-      __dirname,
-      distPath,
-      exists: require('fs').existsSync(path.join(distPath, 'index.html')),
-      rootDirContents: require('fs').readdirSync(path.join(__dirname, '..')),
-      clientDirContents: require('fs').existsSync(path.join(__dirname, '../client')) ? require('fs').readdirSync(path.join(__dirname, '../client')) : 'not found'
-    },
     env: {
       hasMongoUri: !!process.env.MONGO_URI,
-      mongoUriPrefix: process.env.MONGO_URI ? process.env.MONGO_URI.substring(0, 15) : 'none',
       nodeEnv: process.env.NODE_ENV
-    } 
+    }
   });
 });
 
-// Initial connection attempt
-connectDB();
-
 // Serve uploads statically
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+if (isVercel) {
+  app.use('/uploads', express.static(bundledUploadsDir));
+}
+app.use('/uploads', express.static(runtimeUploadsDir));
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/search', searchRoutes);
 
 // Serve static assets in production (Render)
-if (!process.env.VERCEL) {
+if (!isVercel) {
   const distPath = path.join(__dirname, '../client/dist');
   app.use(express.static(distPath));
 
@@ -87,6 +141,11 @@ if (!process.env.VERCEL) {
 
 const PORT = process.env.PORT || 8080;
 
-app.listen(PORT, () => console.log(`✅ Server on port ${PORT}`));
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`✅ Server on port ${PORT}`);
+    connectDB();
+  });
+}
 
 module.exports = app;

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { searchUsers, BASE_URL } from "../api";
+import { searchUsers } from "../api";
 import { Link } from "react-router-dom";
+import Avatar from "./Avatar";
 
 export default function UserSearch({ onClose }) {
   const [query, setQuery] = useState("");
@@ -47,15 +48,10 @@ export default function UserSearch({ onClose }) {
               onClick={onClose}
               className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition"
             >
-              <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden">
-                {user.profilePicture ? (
-                  <img src={`${BASE_URL}${user.profilePicture}`} alt={user.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-gray-500 dark:text-gray-300 text-lg">{user.name[0]}</span>
-                )}
-              </div>
+              <Avatar user={user} />
               <div className="flex flex-col">
                 <span className="font-semibold text-gray-900 dark:text-white">{user.name}</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">@{user.username || "user"}</span>
               </div>
             </Link>
           ))}
