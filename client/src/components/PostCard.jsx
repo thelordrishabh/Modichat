@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { likePost, commentPost } from "../api";
+import { likePost, commentPost, BASE_URL } from "../api";
 import { useAuth } from "../context/AuthContext";
 
 export default function PostCard({ post }) {
@@ -39,7 +39,7 @@ export default function PostCard({ post }) {
         <Link to={`/profile/${post.userId._id}`} className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center overflow-hidden">
             {post.userId.profilePicture ? (
-              <img src={`http://localhost:5000${post.userId.profilePicture}`} alt="Avatar" className="w-full h-full object-cover" />
+              <img src={`${BASE_URL}${post.userId.profilePicture}`} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
               <span className="font-bold text-gray-500 dark:text-gray-300">{post.userId.name[0]}</span>
             )}
@@ -52,7 +52,7 @@ export default function PostCard({ post }) {
       {/* Post Image */}
       <div className="w-full aspect-square bg-black">
         <img 
-          src={`http://localhost:5000${post.imageUrl}`} 
+          src={`${BASE_URL}${post.imageUrl}`} 
           alt="Post" 
           className="w-full h-full object-contain"
         />

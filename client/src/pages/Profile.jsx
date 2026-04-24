@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getUser, getUserPosts, followUser, createConversation } from "../api";
+import { getUser, getUserPosts, followUser, createConversation, BASE_URL } from "../api";
 import Layout from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
 
@@ -76,7 +76,7 @@ export default function Profile() {
         <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-12">
           <div className="w-32 h-32 md:w-40 md:h-40 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
             {profileUser.profilePicture ? (
-              <img src={`http://localhost:5000${profileUser.profilePicture}`} alt="Avatar" className="w-full h-full object-cover" />
+              <img src={`${BASE_URL}${profileUser.profilePicture}`} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
               <span className="text-5xl text-gray-500 dark:text-gray-300">{profileUser.name[0]}</span>
             )}
@@ -133,7 +133,7 @@ export default function Profile() {
             <div className="grid grid-cols-3 gap-1 md:gap-4">
               {posts.map(post => (
                 <div key={post._id} className="aspect-square bg-gray-100 dark:bg-gray-800 relative group cursor-pointer overflow-hidden">
-                  <img src={`http://localhost:5000${post.imageUrl}`} className="w-full h-full object-cover" alt="Post" />
+                  <img src={`${BASE_URL}${post.imageUrl}`} className="w-full h-full object-cover" alt="Post" />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-6 text-white font-semibold">
                     <span className="flex items-center gap-2">❤️ {post.likes.length}</span>
                   </div>

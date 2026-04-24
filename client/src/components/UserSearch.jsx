@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { searchUsers } from "../api";
+import { searchUsers, BASE_URL } from "../api";
 import { Link } from "react-router-dom";
 
 export default function UserSearch({ onClose }) {
@@ -49,7 +49,7 @@ export default function UserSearch({ onClose }) {
             >
               <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden">
                 {user.profilePicture ? (
-                  <img src={`http://localhost:5000${user.profilePicture}`} alt={user.name} className="w-full h-full object-cover" />
+                  <img src={`${BASE_URL}${user.profilePicture}`} alt={user.name} className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-gray-500 dark:text-gray-300 text-lg">{user.name[0]}</span>
                 )}

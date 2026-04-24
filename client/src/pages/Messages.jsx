@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import Layout from "../components/Layout";
-import { getConversations, getMessages, sendMessage } from "../api";
+import { getConversations, getMessages, sendMessage, BASE_URL } from "../api";
 import { useAuth } from "../context/AuthContext";
 
 export default function Messages() {
@@ -82,7 +82,7 @@ export default function Messages() {
                 >
                   <div className="w-12 h-12 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                     {otherUser?.profilePicture ? (
-                      <img src={`http://localhost:5000${otherUser.profilePicture}`} alt="Avatar" className="w-full h-full object-cover" />
+                      <img src={`${BASE_URL}${otherUser.profilePicture}`} alt="Avatar" className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-xl font-bold text-gray-500 dark:text-gray-300">{otherUser?.name[0]}</span>
                     )}
@@ -108,7 +108,7 @@ export default function Messages() {
                     <>
                       <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center overflow-hidden">
                         {otherUser?.profilePicture ? (
-                          <img src={`http://localhost:5000${otherUser.profilePicture}`} alt="Avatar" className="w-full h-full object-cover" />
+                          <img src={`${BASE_URL}${otherUser.profilePicture}`} alt="Avatar" className="w-full h-full object-cover" />
                         ) : (
                           <span className="font-bold text-gray-500 dark:text-gray-300">{otherUser?.name[0]}</span>
                         )}
