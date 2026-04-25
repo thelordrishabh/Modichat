@@ -9,5 +9,11 @@ services:
         sync_env_var: true
       - key: JWT_SECRET
         sync_env_var: true
+      - key: CLOUDINARY_CLOUD_NAME
+        sync_env_var: true
+      - key: CLOUDINARY_API_KEY
+        sync_env_var: true
+      - key: CLOUDINARY_API_SECRET
+        sync_env_var: true
       - key: NODE_ENV
         value: production

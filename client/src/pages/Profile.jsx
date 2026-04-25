@@ -165,7 +165,7 @@ export default function Profile() {
     (currentUser?.following || []).some((followedUserId) => String(followedUserId) === String(targetUserId));
 
   const handleConnectionFollowToggle = async (targetUserId) => {
-    if (String(targetUserId) === String(currentUser._id)) return;
+    if (!currentUser || String(targetUserId) === String(currentUser._id)) return;
 
     try {
       setConnectionsActionUserId(targetUserId);
@@ -244,7 +244,7 @@ export default function Profile() {
                 <h2 className="text-3xl font-light text-gray-900 dark:text-white">{profileUser.name}</h2>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">@{profileUser.username || "user"}</p>
               </div>
-              {currentUser._id !== profileUser._id ? (
+              {currentUser && currentUser._id !== profileUser._id ? (
                 <div className="flex flex-wrap gap-2 justify-center md:justify-start">
                   <button
                     onClick={handleFollow}
@@ -450,7 +450,7 @@ export default function Profile() {
                   </div>
                 ) : (
                   connectionsUsers.map((listedUser) => {
-                    const isSelf = String(listedUser._id) === String(currentUser._id);
+                    const isSelf = currentUser && String(listedUser._id) === String(currentUser._id);
                     const isFollowed = isUserFollowedByCurrentUser(listedUser._id);
 
                     return (

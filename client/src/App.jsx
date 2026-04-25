@@ -12,8 +12,6 @@ import Search from "./pages/Search";
 import Notifications from "./pages/Notifications";
 import EditProfile from "./pages/EditProfile";
 import PostDetail from "./pages/PostDetail";
-import useMobile from "./hooks/useMobile";
-import MobileHome from "./pages/mobile/MobileHome";
 
 function ProtectedRoute({ children }) {
   const { token } = useAuth();
@@ -21,8 +19,6 @@ function ProtectedRoute({ children }) {
 }
 
 function App() {
-  const isMobile = useMobile();
-
   return (
     <ThemeProvider>
       <AuthProvider>
@@ -34,7 +30,7 @@ function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/" element={
                 <ProtectedRoute>
-                  {isMobile ? <MobileHome /> : <Home />}
+                  <Home />
                 </ProtectedRoute>
               } />
               <Route path="/search" element={

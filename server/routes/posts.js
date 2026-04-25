@@ -214,13 +214,13 @@ router.get('/feed', auth, async (req, res) => {
   }
 });
 
-router.get('/user/:userId', auth, async (req, res) => {
+router.get('/user/:userId', optionalAuth, async (req, res) => {
   try {
     const posts = await Post.find({ userId: req.params.userId })
       .sort({ createdAt: -1 })
       .populate(postPopulate);
 
-    const savedPostIds = await getSavedPostIds(req.user.id);
+    const savedPostIds = req.user ? await getSavedPostIds(req.user.id) : [];
     res.json(
       posts.map((post) => {
         const normalized = normalizePost(req, post);
@@ -288,7 +288,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
     const post = await findPostById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
-    const savedPostIds = await getSavedPostIds(req.user.id);
+    const savedPostIds = req.user ? await getSavedPostIds(req.user.id) : [];
     const normalized = normalizePost(req, post);
     normalized.saved = savedPostIds.includes(String(post._id));
 

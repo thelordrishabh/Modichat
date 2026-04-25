@@ -183,7 +183,11 @@ export default function PostCard({ post, onDelete, onUpdate }) {
         </div>
       </div>
 
-      <div className="relative w-full overflow-hidden bg-black" onClick={handleImageTap} onTouchEnd={handleImageTap} onDoubleClick={handleImageTap}>
+      <div
+        className="relative w-full overflow-hidden bg-black"
+        onClick={handleImageTap}
+        onTouchEnd={(e) => { e.preventDefault(); handleImageTap(); }}
+      >
         <img
           src={getAssetUrl(post.imageUrl)}
           alt="Post"

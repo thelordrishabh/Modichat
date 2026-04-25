@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import Layout from "../components/Layout";
 import Avatar from "../components/Avatar";
+import PageFade from "../components/PageFade";
 import { useNotifications } from "../context/NotificationsContext";
 import { getAssetUrl } from "../api";
 
@@ -15,7 +16,7 @@ export default function Notifications() {
 
   return (
     <Layout>
-      <div className="mx-auto w-full max-w-4xl space-y-6">
+      <PageFade className="mx-auto w-full max-w-4xl space-y-6">
         <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -75,7 +76,7 @@ export default function Notifications() {
             ))}
           </div>
         )}
-      </div>
+      </PageFade>
     </Layout>
   );
 }

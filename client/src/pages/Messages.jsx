@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import Layout from "../components/Layout";
+import PageFade from "../components/PageFade";
 import { getConversations, getMessages, sendMessage } from "../api";
 import Avatar from "../components/Avatar";
 import { useAuth } from "../context/AuthContext";
@@ -65,7 +66,7 @@ export default function Messages() {
 
   return (
     <Layout>
-      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden min-h-[75vh] flex flex-col md:flex-row mt-4">
+      <PageFade className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden min-h-[75vh] flex flex-col md:flex-row mt-4">
         
         {/* Conversations List */}
         <div className={`${currentChat ? 'hidden md:flex' : 'flex'} md:w-1/3 border-r border-gray-100 dark:border-gray-700 flex-col`}>
@@ -74,7 +75,7 @@ export default function Messages() {
           </div>
           <div className="flex-1 overflow-y-auto">
             {conversations.map(conv => {
-              const otherUser = conv.members.find(m => m._id !== user._id);
+              const otherUser = conv.members.find(m => String(m._id) !== String(user._id));
               return (
                 <div 
                   key={conv._id} 
@@ -98,7 +99,7 @@ export default function Messages() {
               {/* Chat Header */}
               <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center gap-3">
                 {(() => {
-                  const otherUser = currentChat.members.find(m => m._id !== user._id);
+                  const otherUser = currentChat.members.find(m => String(m._id) !== String(user._id));
                   return (
                     <>
                       <button
@@ -121,11 +122,11 @@ export default function Messages() {
                   <div 
                     key={msg._id} 
                     ref={scrollRef}
-                    className={`flex ${msg.senderId._id === user._id ? 'justify-end' : 'justify-start'}`}
+                    className={`flex ${String(msg.senderId?._id || msg.senderId) === String(user._id) ? 'justify-end' : 'justify-start'}`}
                   >
                     <div 
                       className={`max-w-[70%] px-4 py-2 rounded-2xl ${
-                        msg.senderId._id === user._id 
+                        String(msg.senderId?._id || msg.senderId) === String(user._id) 
                           ? 'bg-blue-600 text-white rounded-br-sm' 
                           : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-100 dark:border-gray-600 rounded-bl-sm'
                       }`}
@@ -164,7 +165,7 @@ export default function Messages() {
           )}
         </div>
 
-      </div>
+      </PageFade>
     </Layout>
   );
 }

@@ -25,6 +25,7 @@ export default function Layout({ children }) {
     { name: "Home", path: "/", icon: "🏠" },
     { name: "Search", path: "/search", icon: "🔍" },
     { name: "Create", action: () => setIsCreateOpen(true), icon: "➕" },
+    { name: "Notifs", path: "/notifications", icon: "🔔", badge: unreadCount },
     { name: "Profile", path: `/profile/${user?._id}`, icon: "👤" }
   ];
 

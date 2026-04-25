@@ -109,9 +109,10 @@ export default function Search() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {results.posts.map((post) => (
-                  <div
+                  <Link
                     key={post._id}
-                    className="overflow-hidden rounded-3xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900"
+                    to={`/posts/${post._id}`}
+                    className="block overflow-hidden rounded-3xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900 transition hover:border-gray-400 dark:hover:border-gray-500"
                   >
                     <img
                       src={getAssetUrl(post.imageUrl)}
@@ -119,7 +120,7 @@ export default function Search() {
                       className="aspect-square w-full object-cover"
                     />
                     <div className="space-y-3 p-4">
-                      <Link to={`/profile/${post.userId._id}`} className="flex items-center gap-3">
+                      <Link to={`/profile/${post.userId._id}`} className="flex items-center gap-3" onClick={e => e.stopPropagation()}>
                         <Avatar user={post.userId} />
                         <div className="min-w-0">
                           <div className="truncate font-semibold text-gray-900 dark:text-white">{post.userId.name}</div>
@@ -132,7 +133,7 @@ export default function Search() {
                         {post.caption || "No caption"}
                       </p>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </section>
