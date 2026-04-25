@@ -17,13 +17,9 @@ export function AuthProvider({ children }) {
     localStorage.setItem("token", tokenData);
   };
 
-  const updateUser = (nextUser) => {
-    setUser(nextUser);
-    if (nextUser) {
-      localStorage.setItem("user", JSON.stringify(nextUser));
-    } else {
-      localStorage.removeItem("user");
-    }
+  const updateUser = (userData) => {
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
   };
 
   const logout = () => {
@@ -40,6 +36,7 @@ export function AuthProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   return useContext(AuthContext);
 }

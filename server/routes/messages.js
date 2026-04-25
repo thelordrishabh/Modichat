@@ -44,7 +44,8 @@ router.post('/', auth, async (req, res) => {
   });
   try {
     const savedMessage = await newMessage.save();
-    res.json(savedMessage);
+    const populatedMessage = await Message.findById(savedMessage._id).populate('senderId', 'name username avatar profilePicture');
+    res.json(populatedMessage);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

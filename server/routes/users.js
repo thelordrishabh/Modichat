@@ -3,6 +3,7 @@ const multer = require('multer');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const optionalAuth = require('../middleware/optionalAuth');
 const { toPublicUser, ensureUniqueUsername, normalizeUsername } = require('../utils/users');
 const { uploadImage } = require('../utils/cloudinary');
 
@@ -199,9 +200,29 @@ router.get('/:id/following', async (req, res) => {
 });
 
 // Get a user
-router.get('/:id', auth, async (req, res) => {
+router.get('/:id', optionalAuth, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password');
+    let query = User.findById(req.params.id).select('-password');
+
+    if (req.user && String(req.user.id) === String(req.params.id)) {
+      query = query.populate({
+        path: 'savedPosts',
+        populate: [
+          { path: 'userId', select: 'name username avatar profilePicture' },
+          {
+            path: 'comments',
+            options: { sort: { createdAt: -1 } },
+            populate: { path: 'userId', select: 'name username avatar profilePicture' }
+          }
+        ]
+      });
+    }
+
+    const user = await query;
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
     res.json(toPublicUser(req, user));
   } catch (err) {
     res.status(500).json({ message: err.message });

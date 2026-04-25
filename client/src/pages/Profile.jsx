@@ -13,27 +13,32 @@ import {
 } from "../api";
 import Avatar from "../components/Avatar";
 import Layout from "../components/Layout";
+import PageFade from "../components/PageFade";
 import { useAuth } from "../context/AuthContext";
 
 export default function Profile() {
   const { id } = useParams();
   const { user: currentUser, updateUser } = useAuth();
   const navigate = useNavigate();
-  
+
   const [profileUser, setProfileUser] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [selectedTab, setSelectedTab] = useState("posts");
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editBio, setEditBio] = useState("");
   const [editAvatarFile, setEditAvatarFile] = useState(null);
   const [editAvatarPreviewUrl, setEditAvatarPreviewUrl] = useState("");
+  const [removeAvatar, setRemoveAvatar] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isConnectionsModalOpen, setIsConnectionsModalOpen] = useState(false);
   const [connectionsType, setConnectionsType] = useState("followers");
   const [connectionsUsers, setConnectionsUsers] = useState([]);
   const [connectionsLoading, setConnectionsLoading] = useState(false);
   const [connectionsActionUserId, setConnectionsActionUserId] = useState("");
+
+  const isOwnProfile = currentUser && id ? String(currentUser._id) === String(id) : false;
 
   useEffect(() => {
     if (!editAvatarFile) {
@@ -54,14 +59,12 @@ export default function Profile() {
 
     const fetchProfile = async () => {
       try {
-        const [userRes, postsRes] = await Promise.all([
-          getUser(id),
-          getUserPosts(id)
-        ]);
+        const [userRes, postsRes] = await Promise.all([getUser(id), getUserPosts(id)]);
         if (!isCancelled) {
           setProfileUser(userRes.data);
           setPosts(postsRes.data);
-          setIsFollowing((userRes.data.followers || []).some((followerId) => String(followerId) === String(currentUser._id)));
+          setSelectedTab("posts");
+          setIsFollowing(currentUser ? (userRes.data.followers || []).some((followerId) => String(followerId) === String(currentUser._id)) : false);
         }
       } catch (err) {
         console.error("Failed to fetch profile", err);
@@ -84,7 +87,7 @@ export default function Profile() {
       isCancelled = true;
       window.removeEventListener("modichat:post-created", handlePostCreated);
     };
-  }, [id, currentUser._id]);
+  }, [id, currentUser?._id]);
 
   const handleFollow = async () => {
     try {
@@ -100,6 +103,7 @@ export default function Profile() {
   const openEditModal = () => {
     setEditBio(profileUser?.bio || "");
     setEditAvatarFile(null);
+    setRemoveAvatar(false);
     setIsEditModalOpen(true);
   };
 
@@ -115,6 +119,7 @@ export default function Profile() {
 
     const formData = new FormData();
     formData.append("bio", editBio);
+    formData.append("removeAvatar", String(removeAvatar));
     if (editAvatarFile) {
       formData.append("avatar", editAvatarFile);
     }
@@ -198,8 +203,15 @@ export default function Profile() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex justify-center p-20">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
+          <div className="space-y-6">
+            <div className="h-56 rounded-3xl bg-gray-200 dark:bg-gray-700 animate-pulse" />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {[...Array(6)].map((_, index) => (
+                <div key={index} className="h-52 rounded-3xl bg-gray-200 dark:bg-gray-700 animate-pulse" />
+              ))}
+            </div>
+          </div>
         </div>
       </Layout>
     );
@@ -213,15 +225,19 @@ export default function Profile() {
         avatar: editAvatarPreviewUrl,
         profilePicture: editAvatarPreviewUrl
       }
-    : profileUser;
+    : removeAvatar
+      ? { ...profileUser, avatar: "", profilePicture: "" }
+      : profileUser;
+
+  const savedPosts = profileUser.savedPosts || [];
+  const displayPosts = selectedTab === "saved" ? savedPosts : posts;
 
   return (
     <Layout>
-      <div className="py-8">
-        {/* Profile Header */}
+      <PageFade className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
         <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-12">
           <Avatar user={profileUser} size="h-32 w-32 md:h-40 md:w-40" textSize="text-5xl" />
-          
+
           <div className="flex-1 text-center md:text-left">
             <div className="flex flex-col md:flex-row items-center gap-4 mb-4">
               <div>
@@ -229,18 +245,18 @@ export default function Profile() {
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">@{profileUser.username || "user"}</p>
               </div>
               {currentUser._id !== profileUser._id ? (
-                <div className="flex gap-2">
-                  <button 
+                <div className="flex flex-wrap gap-2 justify-center md:justify-start">
+                  <button
                     onClick={handleFollow}
                     className={`px-6 py-2 rounded-xl font-semibold transition ${
-                      isFollowing 
-                        ? 'bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600'
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                      isFollowing
+                        ? "bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                        : "bg-blue-600 text-white hover:bg-blue-700"
                     }`}
                   >
                     {isFollowing ? "Following" : "Follow"}
                   </button>
-                  <button 
+                  <button
                     onClick={handleMessage}
                     className="px-6 py-2 rounded-xl font-semibold bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 transition"
                   >
@@ -257,7 +273,7 @@ export default function Profile() {
               )}
             </div>
 
-            <div className="flex justify-center md:justify-start gap-8 mb-4 text-gray-900 dark:text-white">
+            <div className="flex flex-wrap justify-center md:justify-start gap-8 mb-4 text-gray-900 dark:text-white">
               <span className="text-lg"><strong className="font-semibold">{posts.length}</strong> posts</span>
               <button
                 type="button"
@@ -274,23 +290,53 @@ export default function Profile() {
                 <strong className="font-semibold">{profileUser.following?.length || 0}</strong> following
               </button>
             </div>
-            
+
             <div className="text-gray-900 dark:text-white">
               <p>{profileUser.bio}</p>
             </div>
           </div>
         </div>
 
-        {/* Posts Grid */}
+        {isOwnProfile && (
+          <div className="mb-8 flex flex-wrap items-center gap-3 rounded-3xl border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-900">
+            <button
+              type="button"
+              onClick={() => setSelectedTab("posts")}
+              className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                selectedTab === "posts"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+              }`}
+            >
+              Posts ({posts.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedTab("saved")}
+              className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                selectedTab === "saved"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+              }`}
+            >
+              Saved ({savedPosts.length})
+            </button>
+          </div>
+        )}
+
         <div className="border-t border-gray-200 dark:border-gray-700 pt-8">
-          {posts.length === 0 ? (
+          {displayPosts.length === 0 ? (
             <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-              No posts yet.
+              {selectedTab === "saved" ? "No saved posts yet." : "No posts yet."}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-4">
-              {posts.map(post => (
-                <div key={post._id} className="aspect-square bg-gray-100 dark:bg-gray-800 relative group cursor-pointer overflow-hidden">
+              {displayPosts.map((post) => (
+                <div
+                  key={post._id}
+                  onClick={() => navigate(`/posts/${post._id}`)}
+                  className="aspect-square bg-gray-100 dark:bg-gray-800 relative group cursor-pointer overflow-hidden"
+                >
                   <img src={getAssetUrl(post.imageUrl)} className="w-full h-full object-cover" alt="Post" />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-6 text-white font-semibold">
                     <span className="flex items-center gap-2">❤️ {post.likes.length}</span>
@@ -301,151 +347,164 @@ export default function Profile() {
             </div>
           )}
         </div>
-      </div>
 
-      {isEditModalOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm md:items-center md:p-4"
-          onClick={closeEditModal}
-        >
+        {isEditModalOpen ? (
           <div
-            className="w-full max-w-lg rounded-t-3xl bg-white p-6 shadow-2xl dark:bg-gray-800 md:rounded-3xl"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm md:items-center md:p-4"
+            onClick={closeEditModal}
           >
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Edit Profile</h3>
-              <button
-                type="button"
-                onClick={closeEditModal}
-                className="flex min-h-11 min-w-11 items-center justify-center rounded-2xl text-gray-500 transition hover:text-gray-900 dark:hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveProfile} className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Avatar user={editPreviewUser} size="h-20 w-20" textSize="text-2xl" />
-                <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-2xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200">
-                  Change avatar
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => setEditAvatarFile(e.target.files?.[0] || null)}
-                  />
-                </label>
+            <div
+              className="w-full max-w-lg rounded-t-3xl bg-white p-6 shadow-2xl dark:bg-gray-800 md:rounded-3xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Edit Profile</h3>
+                <button
+                  type="button"
+                  onClick={closeEditModal}
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-2xl text-gray-500 transition hover:text-gray-900 dark:hover:text-white"
+                >
+                  ✕
+                </button>
               </div>
 
-              <label className="block space-y-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Bio</span>
-                <textarea
-                  value={editBio}
-                  onChange={(e) => setEditBio(e.target.value)}
-                  rows={4}
-                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition focus:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                />
-              </label>
+              <form onSubmit={handleSaveProfile} className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <Avatar user={editPreviewUser} size="h-20 w-20" textSize="text-2xl" />
+                  <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-2xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200">
+                    Change avatar
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        setEditAvatarFile(e.target.files?.[0] || null);
+                        setRemoveAvatar(false);
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditAvatarFile(null);
+                      setRemoveAvatar(true);
+                    }}
+                    className="min-h-11 rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                  >
+                    Remove avatar
+                  </button>
+                </div>
 
-              <button
-                type="submit"
-                disabled={isSavingProfile}
-                className="min-h-11 w-full rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
-              >
-                {isSavingProfile ? "Saving..." : "Save"}
-              </button>
-            </form>
-          </div>
-        </div>
-      ) : null}
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Bio</span>
+                  <textarea
+                    value={editBio}
+                    onChange={(e) => setEditBio(e.target.value)}
+                    rows={4}
+                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition focus:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  />
+                </label>
 
-      {isConnectionsModalOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm md:items-center md:p-4"
-          onClick={closeConnectionsModal}
-        >
-          <div
-            className="w-full max-w-lg rounded-t-3xl bg-white p-4 shadow-2xl dark:bg-gray-800 md:rounded-3xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {connectionsType === "followers" ? "Followers" : "Following"}
-              </h3>
-              <button
-                type="button"
-                onClick={closeConnectionsModal}
-                className="flex min-h-11 min-w-11 items-center justify-center rounded-2xl text-gray-500 transition hover:text-gray-900 dark:hover:text-white"
-              >
-                ✕
-              </button>
+                <button
+                  type="submit"
+                  disabled={isSavingProfile}
+                  className="min-h-11 w-full rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {isSavingProfile ? "Saving..." : "Save"}
+                </button>
+              </form>
             </div>
+          </div>
+        ) : null}
 
-            <div className="max-h-[60vh] space-y-2 overflow-y-auto pb-2">
-              {connectionsLoading ? (
-                <div className="flex justify-center py-8">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-                </div>
-              ) : connectionsUsers.length === 0 ? (
-                <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-                  No users found.
-                </div>
-              ) : (
-                connectionsUsers.map((listedUser) => {
-                  const isSelf = String(listedUser._id) === String(currentUser._id);
-                  const isFollowed = isUserFollowedByCurrentUser(listedUser._id);
+        {isConnectionsModalOpen ? (
+          <div
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm md:items-center md:p-4"
+            onClick={closeConnectionsModal}
+          >
+            <div
+              className="w-full max-w-lg rounded-t-3xl bg-white p-4 shadow-2xl dark:bg-gray-800 md:rounded-3xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  {connectionsType === "followers" ? "Followers" : "Following"}
+                </h3>
+                <button
+                  type="button"
+                  onClick={closeConnectionsModal}
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-2xl text-gray-500 transition hover:text-gray-900 dark:hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
 
-                  return (
-                    <div
-                      key={listedUser._id}
-                      className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 p-3 dark:border-gray-700"
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <Avatar user={listedUser} />
-                        <div className="min-w-0">
-                          <div className="truncate font-semibold text-gray-900 dark:text-white">
-                            {listedUser.name}
-                          </div>
-                          <div className="truncate text-sm text-gray-500 dark:text-gray-400">
-                            @{listedUser.username || "user"}
+              <div className="max-h-[60vh] space-y-2 overflow-y-auto pb-2">
+                {connectionsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+                  </div>
+                ) : connectionsUsers.length === 0 ? (
+                  <div className="py-8 text-center text-gray-500 dark:text-gray-400">
+                    No users found.
+                  </div>
+                ) : (
+                  connectionsUsers.map((listedUser) => {
+                    const isSelf = String(listedUser._id) === String(currentUser._id);
+                    const isFollowed = isUserFollowedByCurrentUser(listedUser._id);
+
+                    return (
+                      <div
+                        key={listedUser._id}
+                        className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 p-3 dark:border-gray-700"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <Avatar user={listedUser} />
+                          <div className="min-w-0">
+                            <div className="truncate font-semibold text-gray-900 dark:text-white">
+                              {listedUser.name}
+                            </div>
+                            <div className="truncate text-sm text-gray-500 dark:text-gray-400">
+                              @{listedUser.username || "user"}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      {isSelf ? (
-                        <button
-                          type="button"
-                          disabled
-                          className="min-h-11 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-500 dark:border-gray-600 dark:text-gray-400"
-                        >
-                          You
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleConnectionFollowToggle(listedUser._id)}
-                          disabled={connectionsActionUserId === listedUser._id}
-                          className={`min-h-11 rounded-xl px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ${
-                            isFollowed
-                              ? "bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-                              : "bg-blue-600 text-white hover:bg-blue-700"
-                          }`}
-                        >
-                          {connectionsActionUserId === listedUser._id
-                            ? "Updating..."
-                            : isFollowed
-                              ? "Unfollow"
-                              : "Follow"}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })
-              )}
+                        {isSelf ? (
+                          <button
+                            type="button"
+                            disabled
+                            className="min-h-11 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-500 dark:border-gray-600 dark:text-gray-400"
+                          >
+                            You
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleConnectionFollowToggle(listedUser._id)}
+                            disabled={connectionsActionUserId === listedUser._id}
+                            className={`min-h-11 rounded-xl px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ${
+                              isFollowed
+                                ? "bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                                : "bg-blue-600 text-white hover:bg-blue-700"
+                            }`}
+                          >
+                            {connectionsActionUserId === listedUser._id
+                              ? "Updating..."
+                              : isFollowed
+                                ? "Unfollow"
+                                : "Follow"}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </PageFade>
     </Layout>
   );
 }

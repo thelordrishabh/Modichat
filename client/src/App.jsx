@@ -11,6 +11,7 @@ import Messages from "./pages/Messages";
 import Search from "./pages/Search";
 import Notifications from "./pages/Notifications";
 import EditProfile from "./pages/EditProfile";
+import PostDetail from "./pages/PostDetail";
 import useMobile from "./hooks/useMobile";
 import MobileHome from "./pages/mobile/MobileHome";
 
@@ -52,9 +53,10 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/profile/:id" element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
+                <Profile />
+              } />
+              <Route path="/posts/:id" element={
+                <PostDetail />
               } />
               <Route path="/messages" element={
                 <ProtectedRoute>

@@ -36,7 +36,7 @@ const toPublicUser = (req, user) => {
   const normalizedUser = normalizeUser(req, user);
   if (!normalizedUser) return normalizedUser;
 
-  return {
+  const publicUser = {
     _id: normalizedUser._id,
     name: normalizedUser.name,
     username: normalizedUser.username,
@@ -47,6 +47,12 @@ const toPublicUser = (req, user) => {
     followers: normalizedUser.followers || [],
     following: normalizedUser.following || []
   };
+
+  if (req.user && String(req.user.id) === String(normalizedUser._id)) {
+    publicUser.savedPosts = normalizedUser.savedPosts || [];
+  }
+
+  return publicUser;
 };
 
 module.exports = {

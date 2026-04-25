@@ -1,11 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
+import CreatePostModal from "../CreatePostModal";
+import { useState } from "react";
 
 export default function MobileLayout({ children }) {
   const { user, logout } = useAuth();
   const { dark, toggleDark } = useTheme();
   const location = useLocation();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const navItems = [
     { path: "/", icon: "🏠", label: "Home" },
@@ -21,7 +24,7 @@ export default function MobileLayout({ children }) {
         <h1 className="text-xl font-black tracking-tighter dark:text-white">MODICHAT</h1>
         <div className="flex items-center gap-4">
           <button onClick={toggleDark} className="text-xl">{dark ? "☀️" : "🌙"}</button>
-          <button className="text-xl">➕</button>
+          <button onClick={() => setIsCreateOpen(true)} className="text-xl">➕</button>
         </div>
       </header>
 
@@ -42,6 +45,8 @@ export default function MobileLayout({ children }) {
           </Link>
         ))}
       </nav>
+
+      {isCreateOpen && <CreatePostModal onClose={() => setIsCreateOpen(false)} />}
     </div>
   );
 }

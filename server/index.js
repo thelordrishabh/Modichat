@@ -20,7 +20,10 @@ const runtimeUploadsDir = isVercel ? path.join('/tmp', 'uploads') : bundledUploa
 
 fs.mkdirSync(runtimeUploadsDir, { recursive: true });
 
-app.use(cors({ origin: '*' }));
+app.use(cors({ 
+  origin: '*',
+  exposedHeaders: ['X-Has-More']
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

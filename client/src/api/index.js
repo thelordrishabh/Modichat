@@ -41,9 +41,13 @@ export const updateProfile = (data) => API.put("/users/profile", data);
 
 // Posts
 export const createPost = (data) => API.post("/posts", data);
-export const getFeed = () => API.get("/posts/feed");
-export const getPosts = () => API.get("/posts");
+export const getFeed = (page = 1, limit = 10) => API.get(`/posts/feed?page=${page}&limit=${limit}`);
+export const getPosts = (page = 1, limit = 10) => API.get(`/posts?page=${page}&limit=${limit}`);
 export const getUserPosts = (userId) => API.get(`/posts/user/${userId}`);
+export const getPostById = (id) => API.get(`/posts/${id}`);
+export const savePost = (id) => API.put(`/posts/${id}/save`);
+export const updatePost = (id, data) => API.put(`/posts/${id}`, data);
+export const deletePost = (id) => API.delete(`/posts/${id}`);
 export const likePost = (id) => API.post(`/posts/${id}/like`);
 export const commentPost = (id, data) => API.post(`/posts/${id}/comments`, data);
 export const getComments = (id) => API.get(`/posts/${id}/comments`);
