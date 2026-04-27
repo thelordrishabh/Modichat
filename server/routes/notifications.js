@@ -10,7 +10,7 @@ router.get('/', auth, async (req, res) => {
       .populate('sender', 'name username avatar profilePicture')
       .populate({
         path: 'post',
-        select: 'caption imageUrl userId',
+        select: 'caption imageUrl mediaUrl mediaType userId',
         populate: {
           path: 'userId',
           select: 'name username avatar profilePicture'

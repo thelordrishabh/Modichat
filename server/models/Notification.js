@@ -5,10 +5,21 @@ const NotificationSchema = new mongoose.Schema({
   sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   type: {
     type: String,
-    enum: ['like', 'comment', 'follow'],
+    enum: [
+      'like',
+      'comment',
+      'follow',
+      'mention',
+      'collab',
+      'tip',
+      'badge',
+      'live',
+      'follow_request'
+    ],
     required: true
   },
   post: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', default: null },
+  message: { type: String, default: '' },
   read: { type: Boolean, default: false }
 }, { timestamps: true });
 

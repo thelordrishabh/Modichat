@@ -1,8 +1,9 @@
 import axios from "axios";
 
 const DEFAULT_DEV_API_URL = "http://127.0.0.1:8080/api";
+const DEFAULT_PROD_API_URL = "https://modichat-api.onrender.com/api";
 export const API_BASE_URL = import.meta.env.PROD
-  ? (import.meta.env.VITE_API_URL || "/api")
+  ? (import.meta.env.VITE_API_URL || DEFAULT_PROD_API_URL)
   : (import.meta.env.VITE_API_URL || DEFAULT_DEV_API_URL);
 export const BASE_URL = API_BASE_URL.replace(/\/api\/?$/, "");
 export const API = axios.create({ 
@@ -61,6 +62,60 @@ export const markNotificationsRead = () => API.put("/notifications/read");
 
 // Messages
 export const getConversations = () => API.get("/messages/conversation");
+export const getConversationSummaries = () => API.get("/messages/conversations");
 export const createConversation = (receiverId) => API.post("/messages/conversation", { receiverId });
 export const getMessages = (conversationId) => API.get(`/messages/${conversationId}`);
 export const sendMessage = (data) => API.post("/messages", data);
+export const getMessagesByUser = (userId) => API.get(`/messages/user/${userId}`);
+export const sendMessageToUser = (userId, data) => API.post(`/messages/user/${userId}`, data);
+
+// Stories
+export const createStory = (data) => API.post("/stories", data);
+export const getStories = () => API.get("/stories");
+export const viewStory = (id) => API.put(`/stories/${id}/view`);
+
+// Highlights
+export const createHighlight = (data) => API.post("/highlights", data);
+export const getHighlights = (userId) => API.get(`/highlights${userId ? `?userId=${userId}` : ""}`);
+export const updateHighlight = (id, data) => API.put(`/highlights/${id}`, data);
+export const deleteHighlight = (id) => API.delete(`/highlights/${id}`);
+
+// Reports
+export const createReport = (data) => API.post("/reports", data);
+
+// Polls / reactions / repost / promotions
+export const votePoll = (id, optionIndex) => API.put(`/posts/${id}/vote`, { optionIndex });
+export const reactPost = (id, type) => API.put(`/posts/${id}/react`, { type });
+export const repostPost = (id, data = {}) => API.post(`/posts/${id}/repost`, data);
+export const acceptCollab = (id) => API.put(`/posts/${id}/accept-collab`);
+export const promotePost = (id, durationDays) => API.post(`/posts/${id}/promote`, { durationDays });
+export const deleteComment = (postId, commentId) => API.delete(`/posts/${postId}/comments/${commentId}`);
+
+// Trending and hashtags
+export const getTrending = () => API.get("/trending");
+export const getTrendingHashtags = () => API.get("/hashtags/trending");
+export const getPostsByHashtag = (tag) => API.get(`/hashtags/${tag}`);
+
+// Users moderation / privacy / monetization
+export const searchUsersForMentions = (q) => API.get(`/users/search?q=${encodeURIComponent(q)}`);
+export const blockUser = (id) => API.put(`/users/${id}/block`);
+export const unblockUser = (id) => API.put(`/users/${id}/unblock`);
+export const trackProfileView = (id) => API.put(`/users/${id}/view`);
+export const getMyProfileViews = () => API.get("/users/profile-views");
+export const acceptFollowRequest = (id, requesterId) => API.put(`/users/${id}/accept-request`, { requesterId });
+export const rejectFollowRequest = (id, requesterId) => API.put(`/users/${id}/reject-request`, { requesterId });
+export const verifyUser = (id, isVerified = true) => API.put(`/users/${id}/verify`, { isVerified });
+export const subscribeToCreator = (id) => API.post(`/users/${id}/subscribe`);
+
+// Events
+export const createEvent = (data) => API.post("/events", data);
+export const getEvents = () => API.get("/events");
+export const rsvpEvent = (id, status) => API.put(`/events/${id}/rsvp`, { status });
+
+// Utils
+export const getLinkPreview = (url) => API.get(`/utils/link-preview?url=${encodeURIComponent(url)}`);
+export const searchMusicTracks = (q) => API.get(`/utils/music/search?q=${encodeURIComponent(q)}`);
+
+// Coins
+export const purchaseBadge = (data) => API.post("/badges", data);
+export const sendTip = (data) => API.post("/tips", data);

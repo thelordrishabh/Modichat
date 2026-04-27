@@ -14,7 +14,7 @@ if (hasCloudinaryConfig) {
   });
 }
 
-const uploadImage = async (file, options = {}) => {
+const uploadAsset = async (file, options = {}) => {
   if (!file) return '';
 
   if (hasCloudinaryConfig) {
@@ -22,7 +22,7 @@ const uploadImage = async (file, options = {}) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: options.folder || 'modichat',
-          resource_type: 'image'
+          resource_type: options.resourceType || 'image'
         },
         (error, result) => {
           if (error) {
@@ -43,7 +43,19 @@ const uploadImage = async (file, options = {}) => {
   return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
 };
 
+const uploadImage = async (file, options = {}) =>
+  uploadAsset(file, { ...options, resourceType: 'image' });
+
+const uploadVideo = async (file, options = {}) =>
+  uploadAsset(file, { ...options, resourceType: 'video' });
+
+const uploadAudio = async (file, options = {}) =>
+  uploadAsset(file, { ...options, resourceType: 'video' });
+
 module.exports = {
   hasCloudinaryConfig,
-  uploadImage
+  uploadAsset,
+  uploadAudio,
+  uploadImage,
+  uploadVideo
 };

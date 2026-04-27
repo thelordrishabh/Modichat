@@ -1,12 +1,26 @@
 import { useEffect, useState } from "react";
 import { createPost } from "../api";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+import MentionInput from "./MentionInput";
+import FilterPicker from "./FilterPicker";
+import StickerCanvas from "./StickerCanvas";
 
 export default function CreatePostModal({ onClose }) {
   const [file, setFile] = useState(null);
   const [caption, setCaption] = useState("");
+  const [mediaType, setMediaType] = useState("image");
+  const [selectedFilter, setSelectedFilter] = useState({ name: "normal", css: "none" });
+  const [pollEnabled, setPollEnabled] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState("");
+  const [pollOptions, setPollOptions] = useState(["", "", "", ""]);
+  const [hideLikes, setHideLikes] = useState(false);
+  const [isExclusive, setIsExclusive] = useState(false);
+  const [collaboratorUsername, setCollaboratorUsername] = useState("");
+  const [stickers, setStickers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!file) {
@@ -28,8 +42,20 @@ export default function CreatePostModal({ onClose }) {
 
     setLoading(true);
     const formData = new FormData();
-    formData.append("image", file);
+    formData.append("media", file);
     formData.append("caption", caption);
+    formData.append("mediaType", mediaType);
+    formData.append("filter", selectedFilter.name);
+    formData.append("hideLikes", String(hideLikes));
+    formData.append("isExclusive", String(isExclusive));
+    formData.append("collaboratorUsername", collaboratorUsername);
+    if (pollEnabled) {
+      formData.append("pollQuestion", pollQuestion);
+      pollOptions.forEach((option, index) => {
+        if (option.trim()) formData.append(`pollOption${index + 1}`, option.trim());
+      });
+    }
+    formData.append("stickers", JSON.stringify(stickers));
 
     try {
       await createPost(formData);
@@ -56,7 +82,11 @@ export default function CreatePostModal({ onClose }) {
         <form onSubmit={handleSubmit} className="overflow-y-auto p-4 flex flex-col gap-4">
           <div className="w-full aspect-square bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center relative overflow-hidden group">
             {file ? (
-              <img src={previewUrl} alt="Preview" className="object-cover w-full h-full" />
+              mediaType === "video" ? (
+                <video src={previewUrl} className="h-full w-full object-cover" muted controls />
+              ) : (
+                <img src={previewUrl} alt="Preview" className="object-cover w-full h-full" style={{ filter: selectedFilter.css }} />
+              )
             ) : (
               <div className="text-center p-6 cursor-pointer" onClick={() => document.getElementById("file-upload").click()}>
                 <span className="text-4xl block mb-2">📸</span>
@@ -66,19 +96,56 @@ export default function CreatePostModal({ onClose }) {
             <input 
               id="file-upload" 
               type="file" 
-              accept="image/*" 
+              accept="image/*,video/*" 
               className="hidden" 
-              onChange={(e) => setFile(e.target.files[0])} 
+              onChange={(e) => {
+                const nextFile = e.target.files[0];
+                setFile(nextFile);
+                setMediaType(nextFile?.type?.startsWith("video") ? "video" : "image");
+              }} 
             />
           </div>
 
-          <textarea
-            placeholder="Write a caption..."
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl p-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white resize-none"
-            rows="3"
-          />
+          <MentionInput value={caption} onChange={setCaption} placeholder="Write a caption with #hashtags and @mentions..." />
+          <FilterPicker value={selectedFilter} onChange={setSelectedFilter} />
+          <StickerCanvas onAddSticker={(emoji) => setStickers((prev) => [...prev, { emoji, x: 50, y: 50 }])} />
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="flex min-h-11 items-center justify-between rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+              Add poll
+              <input type="checkbox" checked={pollEnabled} onChange={(e) => setPollEnabled(e.target.checked)} />
+            </label>
+            <label className="flex min-h-11 items-center justify-between rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+              Hide likes count
+              <input type="checkbox" checked={hideLikes} onChange={(e) => setHideLikes(e.target.checked)} />
+            </label>
+            <label className="flex min-h-11 items-center justify-between rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+              Subscriber only
+              <input type="checkbox" checked={isExclusive} onChange={(e) => setIsExclusive(e.target.checked)} />
+            </label>
+            <input
+              value={collaboratorUsername}
+              onChange={(e) => setCollaboratorUsername(e.target.value)}
+              placeholder="Collab with @username"
+              className="min-h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            />
+          </div>
+          {pollEnabled ? (
+            <div className="space-y-2 rounded-xl border border-gray-200 p-3 dark:border-gray-600">
+              <input value={pollQuestion} onChange={(e) => setPollQuestion(e.target.value)} placeholder="Poll question" className="min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
+              {pollOptions.map((option, index) => (
+                <input
+                  key={index}
+                  value={option}
+                  onChange={(e) => setPollOptions((prev) => prev.map((entry, entryIndex) => (entryIndex === index ? e.target.value : entry)))}
+                  placeholder={`Option ${index + 1}`}
+                  className="min-h-11 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                />
+              ))}
+            </div>
+          ) : null}
+          <button type="button" onClick={() => navigate("/live")} className="min-h-11 w-full rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white">
+            Go Live
+          </button>
 
           <button 
             type="submit" 

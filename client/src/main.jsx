@@ -10,9 +10,18 @@ createRoot(document.getElementById('root')).render(
 );
 
 if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch((err) => {
-      console.error("Service worker registration failed:", err);
-    });
+  window.addEventListener("load", async () => {
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.unregister()));
+    } catch (err) {
+      console.error("Service worker cleanup failed:", err);
+    }
+
+    if (import.meta.env.DEV) {
+      navigator.serviceWorker.register("/sw.js").catch((err) => {
+        console.error("Service worker registration failed:", err);
+      });
+    }
   });
 }

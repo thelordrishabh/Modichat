@@ -62,6 +62,7 @@ const normalizePost = (req, post) => {
 
   const normalizedPost = toPlainObject(post, { virtuals: true });
   normalizedPost.imageUrl = toAbsoluteAssetUrl(req, normalizedPost.imageUrl);
+  normalizedPost.mediaUrl = toAbsoluteAssetUrl(req, normalizedPost.mediaUrl || normalizedPost.imageUrl);
   normalizedPost.userId = normalizeUser(req, normalizedPost.userId);
   normalizedPost.comments = Array.isArray(normalizedPost.comments)
     ? normalizedPost.comments.map((comment) => normalizeComment(req, comment))

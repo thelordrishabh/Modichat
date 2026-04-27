@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { searchEverything, getAssetUrl } from "../api";
+import { searchEverything, getAssetUrl, getTrendingHashtags } from "../api";
 import Avatar from "../components/Avatar";
 import Layout from "../components/Layout";
 import PageFade from "../components/PageFade";
@@ -9,6 +9,11 @@ export default function Search() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState({ users: [], posts: [] });
   const [loading, setLoading] = useState(false);
+  const [hashtags, setHashtags] = useState([]);
+
+  useEffect(() => {
+    getTrendingHashtags().then(({ data }) => setHashtags(data)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -62,6 +67,13 @@ export default function Search() {
               className="min-h-11 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition focus:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             />
           </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {hashtags.map((item) => (
+              <Link key={item.tag} to={`/hashtag/${item.tag}`} className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                #{item.tag}
+              </Link>
+            ))}
+          </div>
         </div>
 
         {loading ? (
@@ -92,7 +104,7 @@ export default function Search() {
                   >
                     <Avatar user={resultUser} size="h-12 w-12" textSize="text-lg" />
                     <div className="min-w-0">
-                      <div className="truncate font-semibold text-gray-900 dark:text-white">{resultUser.name}</div>
+                          <div className="truncate font-semibold text-gray-900 dark:text-white">{resultUser.name} {resultUser.isVerified ? "✓" : ""}</div>
                       <div className="truncate text-sm text-gray-500 dark:text-gray-400">
                         @{resultUser.username || "user"}
                       </div>

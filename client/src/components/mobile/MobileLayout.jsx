@@ -5,7 +5,7 @@ import CreatePostModal from "../CreatePostModal";
 import { useState } from "react";
 
 export default function MobileLayout({ children }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { dark, toggleDark } = useTheme();
   const location = useLocation();
   const [isCreateOpen, setIsCreateOpen] = useState(false);

@@ -5,6 +5,7 @@ import { getCurrentUser, updateProfile } from "../api";
 import Avatar from "../components/Avatar";
 import Layout from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
+import ColorPicker from "../components/ColorPicker";
 
 export default function EditProfile() {
   const { user, updateUser } = useAuth();
@@ -12,7 +13,9 @@ export default function EditProfile() {
   const [form, setForm] = useState({
     name: user?.name || "",
     username: user?.username || "",
-    bio: user?.bio || ""
+    bio: user?.bio || "",
+    themeColor: user?.themeColor || "blue",
+    websiteUrl: user?.websiteUrl || ""
   });
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState("");
@@ -29,7 +32,9 @@ export default function EditProfile() {
           setForm({
             name: data.name || "",
             username: data.username || "",
-            bio: data.bio || ""
+            bio: data.bio || "",
+            themeColor: data.themeColor || "blue",
+            websiteUrl: data.websiteUrl || ""
           });
           updateUser(data);
         }
@@ -80,6 +85,8 @@ export default function EditProfile() {
     formData.append("name", form.name);
     formData.append("username", form.username);
     formData.append("bio", form.bio);
+    formData.append("themeColor", form.themeColor);
+    formData.append("websiteUrl", form.websiteUrl);
     formData.append("removeAvatar", String(removeAvatar));
     if (avatarFile) {
       formData.append("avatar", avatarFile);
@@ -165,6 +172,19 @@ export default function EditProfile() {
                 className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition focus:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
             </label>
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Website URL</span>
+              <input
+                type="url"
+                value={form.websiteUrl}
+                onChange={(e) => setForm((prev) => ({ ...prev, websiteUrl: e.target.value }))}
+                className="min-h-11 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition focus:border-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              />
+            </label>
+            <div className="space-y-2">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Profile theme</span>
+              <ColorPicker value={form.themeColor} onChange={(themeColor) => setForm((prev) => ({ ...prev, themeColor }))} />
+            </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <button

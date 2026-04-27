@@ -17,12 +17,14 @@ router.get('/', auth, async (req, res) => {
 
     const regex = new RegExp(escapeRegex(query), 'i');
 
+    const currentUser = await User.findById(req.user.id).select('blockedUsers');
     const [users, posts] = await Promise.all([
       User.find({
         $or: [
           { name: regex },
           { username: regex }
-        ]
+        ],
+        _id: { $nin: currentUser?.blockedUsers || [] }
       })
         .select('name username avatar profilePicture bio followers following')
         .limit(10),

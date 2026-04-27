@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useNotifications } from "../context/NotificationsContext";
 import { useTheme } from "../context/ThemeContext";
 import CreatePostModal from "./CreatePostModal";
+import { getConversationSummaries } from "../api";
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
@@ -11,22 +12,42 @@ export default function Layout({ children }) {
   const { unreadCount } = useNotifications();
   const location = useLocation();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+
+  useEffect(() => {
+    const loadUnread = async () => {
+      try {
+        const { data } = await getConversationSummaries();
+        const count = data.reduce((sum, conversation) => sum + (conversation.unreadCount || 0), 0);
+        setUnreadMessages(count);
+      } catch {
+        setUnreadMessages(0);
+      }
+    };
+    loadUnread();
+    const timer = setInterval(loadUnread, 15000);
+    return () => clearInterval(timer);
+  }, []);
 
   const desktopNavItems = [
     { name: "Home", path: "/", icon: "🏠" },
     { name: "Search", path: "/search", icon: "🔍" },
+    { name: "Trending", path: "/trending", icon: "🔥" },
+    { name: "Events", path: "/events", icon: "📅" },
     { name: "Notifications", path: "/notifications", icon: "🔔", badge: unreadCount },
-    { name: "Messages", path: "/messages", icon: "💬" },
+    { name: "Messages", path: "/messages", icon: "💬", badge: unreadMessages },
+    { name: "Go Live", path: "/live", icon: "📡" },
     { name: "Create", action: () => setIsCreateOpen(true), icon: "➕" },
-    { name: "Profile", path: `/profile/${user?._id}`, icon: "👤" }
+    { name: "Profile", path: `/profile/${user?._id}`, icon: "👤" },
+    { name: "Settings", path: "/settings", icon: "⚙️" }
   ];
 
   const mobileNavItems = [
     { name: "Home", path: "/", icon: "🏠" },
-    { name: "Search", path: "/search", icon: "🔍" },
+    { name: "Trend", path: "/trending", icon: "🔥" },
     { name: "Create", action: () => setIsCreateOpen(true), icon: "➕" },
-    { name: "Notifs", path: "/notifications", icon: "🔔", badge: unreadCount },
-    { name: "Profile", path: `/profile/${user?._id}`, icon: "👤" }
+    { name: "Events", path: "/events", icon: "📅" },
+    { name: "Settings", path: "/settings", icon: "⚙️" }
   ];
 
   const isPathActive = (path) => {

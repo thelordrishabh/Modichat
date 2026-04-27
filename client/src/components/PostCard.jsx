@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { getAssetUrl, likePost, commentPost, savePost, updatePost, deletePost } from "../api";
+import { getAssetUrl, likePost, commentPost, savePost, updatePost, deletePost, reactPost, votePoll, repostPost, deleteComment } from "../api";
 import Avatar from "./Avatar";
 import { useAuth } from "../context/AuthContext";
+import ReactionPicker from "./ReactionPicker";
+import PollCard from "./PollCard";
+import ReportModal from "./ReportModal";
 
 export default function PostCard({ post, onDelete, onUpdate }) {
   const { user } = useAuth();
@@ -19,6 +22,9 @@ export default function PostCard({ post, onDelete, onUpdate }) {
   const [editCaption, setEditCaption] = useState(post.caption || "");
   const [savingEdit, setSavingEdit] = useState(false);
   const [showHeart, setShowHeart] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [hasVoted, setHasVoted] = useState(false);
   const lastTap = useRef(0);
 
   const isOwner = user ? String(post.userId._id) === String(user._id) : false;
@@ -29,6 +35,12 @@ export default function PostCard({ post, onDelete, onUpdate }) {
     setComments(post.comments || []);
     setIsSaved(Boolean(post.saved));
     setEditCaption(post.caption || "");
+    if (post.poll?.options?.length) {
+      const voted = post.poll.options.some((option) =>
+        option.votes?.some((voteUserId) => String(voteUserId) === String(user?._id))
+      );
+      setHasVoted(voted);
+    }
   }, [post, user?._id]);
 
   const handleLike = async () => {
@@ -76,6 +88,35 @@ export default function PostCard({ post, onDelete, onUpdate }) {
     }
   };
 
+  const handleReact = async (reactionType) => {
+    try {
+      await reactPost(post._id, reactionType);
+      setShowReactionPicker(false);
+      toast.success("Reaction updated");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to react");
+    }
+  };
+
+  const handleVote = async (optionIndex) => {
+    try {
+      await votePoll(post._id, optionIndex);
+      setHasVoted(true);
+      toast.success("Vote submitted");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to vote");
+    }
+  };
+
+  const handleRepost = async () => {
+    try {
+      await repostPost(post._id);
+      toast.success("Reposted");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to repost");
+    }
+  };
+
   const handleComment = async (e) => {
     e.preventDefault();
     if (!commentText.trim()) return;
@@ -88,6 +129,17 @@ export default function PostCard({ post, onDelete, onUpdate }) {
     } catch (err) {
       console.error(err);
       toast.error("Unable to post comment.");
+    }
+  };
+
+  const handleCommentDelete = async (commentId) => {
+    if (!window.confirm("Delete this comment?")) return;
+    try {
+      await deleteComment(post._id, commentId);
+      setComments((prev) => prev.filter((entry) => entry._id !== commentId));
+      toast.success("Comment deleted");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete comment");
     }
   };
 
@@ -142,7 +194,7 @@ export default function PostCard({ post, onDelete, onUpdate }) {
         <Link to={`/profile/${post.userId._id}`} className="flex items-center gap-3">
           <Avatar user={post.userId} />
           <div>
-            <div className="font-semibold text-gray-900 dark:text-white">{post.userId.name}</div>
+            <div className="font-semibold text-gray-900 dark:text-white">{post.userId.name} {post.userId.isVerified ? "✓" : ""}</div>
             <div className="text-xs text-gray-500 dark:text-gray-400">@{post.userId.username || "user"}</div>
           </div>
         </Link>
@@ -188,11 +240,24 @@ export default function PostCard({ post, onDelete, onUpdate }) {
         onClick={handleImageTap}
         onTouchEnd={(e) => { e.preventDefault(); handleImageTap(); }}
       >
-        <img
-          src={getAssetUrl(post.imageUrl)}
-          alt="Post"
-          className="w-full aspect-square object-contain"
-        />
+        {post.mediaType === "video" || (post.mediaUrl && !post.imageUrl) ? (
+          <video
+            src={getAssetUrl(post.mediaUrl || post.imageUrl)}
+            className="w-full aspect-square object-contain"
+            muted
+            autoPlay
+            loop
+            controls
+            playsInline
+          />
+        ) : (
+          <img
+            src={getAssetUrl(post.mediaUrl || post.imageUrl)}
+            alt="Post"
+            className="w-full aspect-square object-contain"
+            style={{ filter: post.filter && post.filter !== "normal" ? undefined : undefined }}
+          />
+        )}
         {showHeart && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <span className="text-6xl text-red-500 opacity-0 animate-heart-pop">❤️</span>
@@ -203,6 +268,7 @@ export default function PostCard({ post, onDelete, onUpdate }) {
       <div className="p-4">
         <div className="flex items-center gap-3 mb-3">
           <button
+            onMouseEnter={() => setShowReactionPicker(true)}
             onClick={handleLike}
             className={`min-h-11 min-w-11 text-2xl transition-transform hover:scale-110 ${isLiked ? "text-red-500" : "text-gray-900 dark:text-white"}`}
             aria-label="Like post"
@@ -224,6 +290,13 @@ export default function PostCard({ post, onDelete, onUpdate }) {
             🔗
           </button>
           <button
+            onClick={handleRepost}
+            className="min-h-11 min-w-11 text-xl transition-transform hover:scale-110 text-gray-900 dark:text-white"
+            aria-label="Repost"
+          >
+            🔁
+          </button>
+          <button
             onClick={handleSave}
             className={`ml-auto min-h-11 min-w-11 text-2xl transition-transform hover:scale-110 ${isSaved ? "text-blue-500" : "text-gray-900 dark:text-white"}`}
             aria-label="Save post"
@@ -237,8 +310,22 @@ export default function PostCard({ post, onDelete, onUpdate }) {
           <Link to={`/profile/${post.userId._id}`} className="font-semibold mr-2">
             {post.userId.name}
           </Link>
-          {post.caption}
+          {(post.caption || "").split(/(#[a-zA-Z0-9_]+|@[a-zA-Z0-9_]+)/g).map((part, index) => {
+            if (part.startsWith("#")) {
+              return <Link key={`${part}-${index}`} to={`/hashtag/${part.slice(1)}`} className="text-blue-500 hover:underline">{part}</Link>;
+            }
+            if (part.startsWith("@")) {
+              return <span key={`${part}-${index}`} className="text-blue-500">{part}</span>;
+            }
+            return <span key={`${part}-${index}`}>{part}</span>;
+          })}
         </div>
+        {!post.hideLikes || isOwner ? (
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">{post.reactions?.length || 0} reactions · {post.repostCount || 0} reposts</div>
+        ) : (
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">Liked by {post.userId.name} and others</div>
+        )}
+        <PollCard poll={post.poll} onVote={handleVote} isVoted={hasVoted} />
         <button
           type="button"
           onClick={() => setShowComments((visible) => !visible)}
@@ -246,21 +333,42 @@ export default function PostCard({ post, onDelete, onUpdate }) {
         >
           {showComments ? "Hide comments" : `View comments (${comments.length})`}
         </button>
+        <button
+          type="button"
+          onClick={() => setShowReportModal(true)}
+          className="mt-2 text-xs text-red-500 hover:underline"
+        >
+          Report post
+        </button>
       </div>
+      {showReactionPicker ? (
+        <div className="px-4 pb-2">
+          <ReactionPicker onSelect={handleReact} />
+        </div>
+      ) : null}
 
       {showComments && (
         <div className="px-4 pb-4 border-t border-gray-100 dark:border-gray-700">
           <div className="pt-3 space-y-3">
             {comments.length > 0 ? (
               comments.map((comment) => (
-                <div key={comment._id} className="flex items-start gap-3 text-sm text-gray-900 dark:text-gray-200">
+                <div key={comment._id} className="group flex items-start gap-3 text-sm text-gray-900 dark:text-gray-200">
                   <Avatar user={comment.userId} size="h-9 w-9" textSize="text-sm" />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <Link to={`/profile/${comment.userId?._id}`} className="font-semibold mr-2">
                       {comment.userId?.name || "User"}
                     </Link>
                     {comment.text}
                   </div>
+                  {(isOwner || String(comment.userId?._id) === String(user?._id)) ? (
+                    <button
+                      type="button"
+                      onClick={() => handleCommentDelete(comment._id)}
+                      className="hidden rounded-full px-2 py-1 text-xs text-red-500 hover:bg-red-50 group-hover:block dark:hover:bg-red-900/20"
+                    >
+                      Delete
+                    </button>
+                  ) : null}
                 </div>
               ))
             ) : (
@@ -322,6 +430,9 @@ export default function PostCard({ post, onDelete, onUpdate }) {
           </div>
         </div>
       )}
+      {showReportModal ? (
+        <ReportModal targetType="post" targetId={post._id} onClose={() => setShowReportModal(false)} />
+      ) : null}
     </div>
   );
 }

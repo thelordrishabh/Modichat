@@ -9,12 +9,21 @@ import {
   getAssetUrl,
   getUserFollowers,
   getUserFollowing,
-  updateProfile
+  updateProfile,
+  getHighlights,
+  getLinkPreview,
+  getMyProfileViews,
+  trackProfileView,
+  blockUser,
+  unblockUser
 } from "../api";
 import Avatar from "../components/Avatar";
 import Layout from "../components/Layout";
 import PageFade from "../components/PageFade";
 import { useAuth } from "../context/AuthContext";
+import HighlightRow from "../components/HighlightRow";
+import LinkPreview from "../components/LinkPreview";
+import ReportModal from "../components/ReportModal";
 
 export default function Profile() {
   const { id } = useParams();
@@ -37,6 +46,11 @@ export default function Profile() {
   const [connectionsUsers, setConnectionsUsers] = useState([]);
   const [connectionsLoading, setConnectionsLoading] = useState(false);
   const [connectionsActionUserId, setConnectionsActionUserId] = useState("");
+  const [highlights, setHighlights] = useState([]);
+  const [linkPreview, setLinkPreview] = useState(null);
+  const [profileViewData, setProfileViewData] = useState({ weekCount: 0, viewers: [] });
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   const isOwnProfile = currentUser && id ? String(currentUser._id) === String(id) : false;
 
@@ -88,6 +102,26 @@ export default function Profile() {
       window.removeEventListener("modichat:post-created", handlePostCreated);
     };
   }, [id, currentUser?._id]);
+
+  useEffect(() => {
+    if (!id) return;
+    trackProfileView(id).catch(() => {});
+    getHighlights(id).then(({ data }) => setHighlights(data)).catch(() => {});
+  }, [id]);
+
+  useEffect(() => {
+    if (!isOwnProfile) return;
+    getMyProfileViews().then(({ data }) => setProfileViewData(data)).catch(() => {});
+  }, [isOwnProfile]);
+
+  useEffect(() => {
+    const urlMatch = (profileUser?.bio || "").match(/https?:\/\/[^\s]+/i);
+    if (!urlMatch) {
+      setLinkPreview(null);
+      return;
+    }
+    getLinkPreview(urlMatch[0]).then(({ data }) => setLinkPreview(data)).catch(() => setLinkPreview(null));
+  }, [profileUser?.bio]);
 
   const handleFollow = async () => {
     try {
@@ -262,6 +296,28 @@ export default function Profile() {
                   >
                     Message
                   </button>
+                  <button
+                    onClick={async () => {
+                      if (isBlocked) {
+                        await unblockUser(id);
+                        setIsBlocked(false);
+                        toast.success("User unblocked");
+                      } else {
+                        await blockUser(id);
+                        setIsBlocked(true);
+                        toast.success("User blocked");
+                      }
+                    }}
+                    className="px-6 py-2 rounded-xl font-semibold bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 transition"
+                  >
+                    {isBlocked ? "Unblock" : "Block"}
+                  </button>
+                  <button
+                    onClick={() => setShowReportModal(true)}
+                    className="px-6 py-2 rounded-xl font-semibold bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300 transition"
+                  >
+                    Report
+                  </button>
                 </div>
               ) : (
                 <button
@@ -293,9 +349,17 @@ export default function Profile() {
 
             <div className="text-gray-900 dark:text-white">
               <p>{profileUser.bio}</p>
+              <LinkPreview preview={linkPreview} />
             </div>
           </div>
         </div>
+
+        <HighlightRow highlights={highlights} />
+        {isOwnProfile ? (
+          <div className="mb-6 rounded-3xl border border-gray-200 bg-white p-4 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+            {profileViewData.weekCount} people viewed your profile this week.
+          </div>
+        ) : null}
 
         {isOwnProfile && (
           <div className="mb-8 flex flex-wrap items-center gap-3 rounded-3xl border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-900">
@@ -503,6 +567,9 @@ export default function Profile() {
               </div>
             </div>
           </div>
+        ) : null}
+        {showReportModal ? (
+          <ReportModal targetType="user" targetId={profileUser._id} onClose={() => setShowReportModal(false)} />
         ) : null}
       </PageFade>
     </Layout>

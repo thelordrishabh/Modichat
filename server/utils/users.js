@@ -44,6 +44,17 @@ const toPublicUser = (req, user) => {
     avatar: normalizedUser.avatar,
     profilePicture: normalizedUser.profilePicture,
     bio: normalizedUser.bio,
+    websiteUrl: normalizedUser.websiteUrl || '',
+    themeColor: normalizedUser.themeColor || 'blue',
+    isPrivate: Boolean(normalizedUser.isPrivate),
+    followRequests: normalizedUser.followRequests || [],
+    blockedUsers: normalizedUser.blockedUsers || [],
+    isVerified: Boolean(normalizedUser.isVerified),
+    isAdmin: Boolean(normalizedUser.isAdmin),
+    coins: normalizedUser.coins || 0,
+    coinsReceived: normalizedUser.coinsReceived || 0,
+    subscriptionPrice: normalizedUser.subscriptionPrice || 0,
+    subscribers: normalizedUser.subscribers || [],
     followers: normalizedUser.followers || [],
     following: normalizedUser.following || []
   };

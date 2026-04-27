@@ -8,7 +8,13 @@ import { getAssetUrl } from "../api";
 const notificationCopy = {
   like: "liked your post",
   comment: "commented on your post",
-  follow: "started following you"
+  follow: "started following you",
+  mention: "mentioned you",
+  collab: "invited you to collaborate",
+  tip: "sent you a tip",
+  badge: "sent you a badge",
+  live: "started a live stream",
+  follow_request: "requested to follow you"
 };
 
 export default function Notifications() {

@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const http = require('http');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const fs = require('fs');
@@ -12,9 +13,19 @@ const postRoutes = require('./routes/posts');
 const searchRoutes = require('./routes/search');
 const userRoutes = require('./routes/users');
 const messageRoutes = require('./routes/messages');
+const storiesRoutes = require('./routes/stories');
+const highlightsRoutes = require('./routes/highlights');
+const reportsRoutes = require('./routes/reports');
+const eventsRoutes = require('./routes/events');
+const trendingRoutes = require('./routes/trending');
+const hashtagsRoutes = require('./routes/hashtags');
+const badgesRoutes = require('./routes/badges');
+const tipsRoutes = require('./routes/tips');
+const utilsRoutes = require('./routes/utils');
 
 const app = express();
 const isVercel = Boolean(process.env.VERCEL);
+const isProduction = process.env.NODE_ENV === 'production' || isVercel;
 const bundledUploadsDir = path.join(__dirname, 'uploads');
 const runtimeUploadsDir = isVercel ? path.join('/tmp', 'uploads') : bundledUploadsDir;
 
@@ -52,6 +63,11 @@ const connectDB = async () => {
     let fallbackReason = '';
 
     if (!uri) {
+      if (isProduction) {
+        fallbackReason = 'MONGO_URI is not set and production requires a real MongoDB connection';
+        lastDbError = fallbackReason;
+        throw new Error(fallbackReason);
+      }
       usingFallback = true;
       fallbackReason = 'MONGO_URI is not set';
     }
@@ -66,6 +82,10 @@ const connectDB = async () => {
         return;
       } catch (err) {
         lastDbError = err.message;
+        if (isProduction) {
+          console.error(`❌ MongoDB connection failed in production: ${err.message}`);
+          throw err;
+        }
         usingFallback = true;
         fallbackReason = err.message;
         console.warn(`⚠️ MongoDB connection failed, falling back to in-memory MongoDB: ${err.message}`);
@@ -126,7 +146,8 @@ app.get('/api/health', async (req, res, next) => {
       dbError: lastDbError,
       env: {
         hasMongoUri: !!process.env.MONGO_URI,
-        nodeEnv: process.env.NODE_ENV
+        nodeEnv: process.env.NODE_ENV,
+        isProduction
       }
     });
   } catch (err) {
@@ -147,6 +168,15 @@ app.use('/api/posts', postRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/stories', storiesRoutes);
+app.use('/api/highlights', highlightsRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/events', eventsRoutes);
+app.use('/api/trending', trendingRoutes);
+app.use('/api/hashtags', hashtagsRoutes);
+app.use('/api/badges', badgesRoutes);
+app.use('/api/tips', tipsRoutes);
+app.use('/api/utils', utilsRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {
@@ -177,7 +207,57 @@ const requestedPort = Number(process.env.PORT) || DEFAULT_PORT;
 
 const startServer = (port) => {
   return new Promise((resolve, reject) => {
-    const server = app.listen(port, '0.0.0.0', async () => {
+    const server = http.createServer(app);
+    const { Server } = require('socket.io');
+    const io = new Server(server, {
+      cors: { origin: '*', methods: ['GET', 'POST'] }
+    });
+
+    app.set('io', io);
+
+    io.on('connection', (socket) => {
+      socket.on('user:join', (userId) => {
+        if (!userId) return;
+        socket.join(`user:${userId}`);
+        io.emit('presence:update', { userId, online: true });
+      });
+
+      socket.on('dm:typing', ({ toUserId, fromUser }) => {
+        if (!toUserId) return;
+        io.to(`user:${toUserId}`).emit('dm:typing', { fromUser });
+      });
+
+      socket.on('dm:seen', ({ toUserId, messageId }) => {
+        if (!toUserId) return;
+        io.to(`user:${toUserId}`).emit('dm:seen', { messageId });
+      });
+
+      socket.on('join-stream', ({ streamId, user }) => {
+        if (!streamId) return;
+        socket.join(`stream:${streamId}`);
+        io.to(`stream:${streamId}`).emit('stream:viewers', {
+          streamId,
+          viewers: io.sockets.adapter.rooms.get(`stream:${streamId}`)?.size || 0,
+          user
+        });
+      });
+
+      socket.on('leave-stream', ({ streamId }) => {
+        if (!streamId) return;
+        socket.leave(`stream:${streamId}`);
+        io.to(`stream:${streamId}`).emit('stream:viewers', {
+          streamId,
+          viewers: io.sockets.adapter.rooms.get(`stream:${streamId}`)?.size || 0
+        });
+      });
+
+      socket.on('stream-message', ({ streamId, message }) => {
+        if (!streamId) return;
+        io.to(`stream:${streamId}`).emit('stream-message', message);
+      });
+    });
+
+    server.listen(port, '0.0.0.0', async () => {
       console.log(`✅ Server on port ${port}`);
       try {
         await connectDB();
