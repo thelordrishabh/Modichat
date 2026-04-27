@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const DEFAULT_DEV_API_URL = "http://localhost:5000/api";
+const DEFAULT_DEV_API_URL = "http://127.0.0.1:8080/api";
 export const API_BASE_URL = import.meta.env.PROD
   ? (import.meta.env.VITE_API_URL || "/api")
   : (import.meta.env.VITE_API_URL || DEFAULT_DEV_API_URL);
@@ -11,7 +11,7 @@ export const API = axios.create({
 
 export const getAssetUrl = (value) => {
   if (!value) return "";
-  if (/^(?:https?:)?\/\//i.test(value) || value.startsWith("data:")) return value;
+  if (/^(?:https?:|blob:)?\/\//i.test(value) || value.startsWith("data:") || value.startsWith("blob:")) return value;
 
   const normalizedPath = value.startsWith("/") ? value : `/${value}`;
   return `${BASE_URL}${normalizedPath}`;

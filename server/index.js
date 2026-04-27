@@ -69,6 +69,12 @@ const connectDB = async () => {
         usingFallback = true;
         fallbackReason = err.message;
         console.warn(`⚠️ MongoDB connection failed, falling back to in-memory MongoDB: ${err.message}`);
+
+        try {
+          await mongoose.disconnect();
+        } catch (disconnectErr) {
+          console.warn(`⚠️ Error while disconnecting from failed MongoDB attempt: ${disconnectErr.message}`);
+        }
       }
     }
 
@@ -79,11 +85,17 @@ const connectDB = async () => {
       }
 
       uri = await startMemoryServer();
-      await mongoose.connect(uri, {
-        serverSelectionTimeoutMS: 5000
-      });
-      console.log('✅ In-memory MongoDB connected');
-      lastDbError = null;
+      try {
+        await mongoose.connect(uri, {
+          serverSelectionTimeoutMS: 5000
+        });
+        console.log('✅ In-memory MongoDB connected');
+        lastDbError = null;
+      } catch (err) {
+        lastDbError = err.message;
+        console.error(`❌ In-memory MongoDB connection failed: ${err.message}`);
+        throw err;
+      }
     }
   })()
     .finally(() => {
@@ -95,23 +107,31 @@ const connectDB = async () => {
 
 // Middleware to ensure DB connection
 app.use(async (req, res, next) => {
-  await connectDB();
-  next();
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Health check route
-app.get('/api/health', async (req, res) => {
-  await connectDB();
-  res.json({
-    status: 'ok',
-    dbState: mongoose.connection.readyState,
-    dbStatus: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState],
-    dbError: lastDbError,
-    env: {
-      hasMongoUri: !!process.env.MONGO_URI,
-      nodeEnv: process.env.NODE_ENV
-    }
-  });
+app.get('/api/health', async (req, res, next) => {
+  try {
+    await connectDB();
+    res.json({
+      status: 'ok',
+      dbState: mongoose.connection.readyState,
+      dbStatus: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState],
+      dbError: lastDbError,
+      env: {
+        hasMongoUri: !!process.env.MONGO_URI,
+        nodeEnv: process.env.NODE_ENV
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Serve uploads statically
@@ -128,6 +148,16 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/search', searchRoutes);
 
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Express error:', err);
+  res.status(500).json({
+    status: 'error',
+    message: err.message || 'Internal Server Error',
+    dbError: lastDbError
+  });
+});
+
 // Serve static assets in production (Render)
 if (!isVercel) {
   const distPath = path.join(__dirname, '../client/dist');
@@ -142,12 +172,38 @@ if (!isVercel) {
   });
 }
 
-const PORT = process.env.PORT || 8080;
+const DEFAULT_PORT = 8080;
+const requestedPort = Number(process.env.PORT) || DEFAULT_PORT;
+
+const startServer = (port) => {
+  return new Promise((resolve, reject) => {
+    const server = app.listen(port, '0.0.0.0', async () => {
+      console.log(`✅ Server on port ${port}`);
+      try {
+        await connectDB();
+        resolve(server);
+      } catch (err) {
+        reject(err);
+      }
+    });
+
+    server.on('error', reject);
+  });
+};
 
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`✅ Server on port ${PORT}`);
-    connectDB();
+  startServer(requestedPort).catch((err) => {
+    if (err.code === 'EADDRINUSE' && requestedPort !== DEFAULT_PORT) {
+      console.warn(`⚠️ Port ${requestedPort} is unavailable, trying ${DEFAULT_PORT}`);
+      startServer(DEFAULT_PORT).catch((err2) => {
+        console.error(`❌ Failed to start server on fallback port ${DEFAULT_PORT}: ${err2.message}`);
+        process.exit(1);
+      });
+      return;
+    }
+
+    console.error(`❌ Server start error: ${err.message}`);
+    process.exit(1);
   });
 }
 
