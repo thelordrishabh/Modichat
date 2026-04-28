@@ -4,12 +4,19 @@ import { getTrending } from "../api";
 
 export default function Trending() {
   const [data, setData] = useState({ trendingPosts: [], trendingUsers: [] });
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const load = async () => {
-      const { data: payload } = await getTrending();
-      setData(payload);
+      try {
+        const { data: payload } = await getTrending();
+        setData(payload);
+        setError("");
+      } catch (err) {
+        setError(err?.response?.data?.message || err.message || "Unable to load trending content.");
+      }
     };
+
     load();
     const timer = setInterval(load, 5 * 60 * 1000);
     return () => clearInterval(timer);
@@ -20,6 +27,9 @@ export default function Trending() {
       <div className="space-y-6">
         <section className="rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">🔥 Trending Posts</h1>
+          {error ? (
+            <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>
+          ) : null}
           <div className="mt-4 space-y-3">
             {data.trendingPosts.map((post, index) => (
               <div key={post._id} className="rounded-2xl bg-gray-100 p-3 dark:bg-gray-700">

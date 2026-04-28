@@ -1,12 +1,15 @@
 import axios from "axios";
 
 const DEFAULT_DEV_API_URL = "http://127.0.0.1:8080/api";
-const DEFAULT_PROD_API_URL = "https://modichat-api.onrender.com/api";
+const DEFAULT_PROD_API_URL = "/api";
 export const API_BASE_URL = import.meta.env.PROD
-  ? (import.meta.env.VITE_API_URL || DEFAULT_PROD_API_URL)
+  ? DEFAULT_PROD_API_URL
   : (import.meta.env.VITE_API_URL || DEFAULT_DEV_API_URL);
 export const BASE_URL = API_BASE_URL.replace(/\/api\/?$/, "");
 export const API = axios.create({ 
+  baseURL: API_BASE_URL
+});
+export const PUBLIC_API = axios.create({
   baseURL: API_BASE_URL
 });
 
@@ -42,6 +45,7 @@ export const updateProfile = (data) => API.put("/users/profile", data);
 
 // Posts
 export const createPost = (data) => API.post("/posts", data);
+export const getGlobalFeed = (page = 1, limit = 10) => PUBLIC_API.get(`/posts/global?page=${page}&limit=${limit}`);
 export const getFeed = (page = 1, limit = 10) => API.get(`/posts/feed?page=${page}&limit=${limit}`);
 export const getPosts = (page = 1, limit = 10) => API.get(`/posts?page=${page}&limit=${limit}`);
 export const getUserPosts = (userId) => API.get(`/posts/user/${userId}`);
@@ -100,7 +104,7 @@ export const getPostsByHashtag = (tag) => API.get(`/hashtags/${tag}`);
 export const searchUsersForMentions = (q) => API.get(`/users/search?q=${encodeURIComponent(q)}`);
 export const blockUser = (id) => API.put(`/users/${id}/block`);
 export const unblockUser = (id) => API.put(`/users/${id}/unblock`);
-export const trackProfileView = (id) => API.put(`/users/${id}/view`);
+export const trackProfileView = (id, data = {}) => API.put(`/users/${id}/view`, data);
 export const getMyProfileViews = () => API.get("/users/profile-views");
 export const acceptFollowRequest = (id, requesterId) => API.put(`/users/${id}/accept-request`, { requesterId });
 export const rejectFollowRequest = (id, requesterId) => API.put(`/users/${id}/reject-request`, { requesterId });

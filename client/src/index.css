@@ -35,3 +35,18 @@
 .animate-heart-pop {
   animation: heart-pop 0.7s ease-out forwards;
 }
+
+@keyframes modal-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-modal-enter {
+  animation: modal-enter 180ms ease-out forwards;
+}

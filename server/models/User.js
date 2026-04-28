@@ -17,7 +17,10 @@ const UserSchema = new mongoose.Schema({
   isPrivate: { type: Boolean, default: false },
   followRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   profileViews: [{
-    viewer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    viewer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    guestName: { type: String, default: null },
+    guestInstagram: { type: String, default: null },
+    isGuest: { type: Boolean, default: false },
     viewedAt: { type: Date, default: Date.now }
   }],
   isVerified: { type: Boolean, default: false },

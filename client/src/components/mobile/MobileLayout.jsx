@@ -10,12 +10,19 @@ export default function MobileLayout({ children }) {
   const location = useLocation();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  const navItems = [
-    { path: "/", icon: "🏠", label: "Home" },
-    { path: "/search", icon: "🔍", label: "Explore" },
-    { path: "/messages", icon: "💬", label: "Inbox" },
-    { path: `/profile/${user?._id}`, icon: "👤", label: "Profile" }
-  ];
+  const navItems = user
+    ? [
+        { path: "/", icon: "🏠", label: "Home" },
+        { path: "/search", icon: "🔍", label: "Search" },
+        { name: "Create", action: () => setIsCreateOpen(true), icon: "➕", label: "Create" },
+        { path: `/profile/${user?._id}`, icon: "👤", label: "Profile" }
+      ]
+    : [
+        { path: "/", icon: "🏠", label: "Home" },
+        { path: "/search", icon: "🔍", label: "Search" },
+        { path: "/login", icon: "🔑", label: "Log In" },
+        { path: "/register", icon: "📝", label: "Sign Up" }
+      ];
 
   return (
     <div className="min-h-screen bg-white dark:bg-black transition-colors duration-300 pb-20">
@@ -24,7 +31,9 @@ export default function MobileLayout({ children }) {
         <h1 className="text-xl font-black tracking-tighter dark:text-white">MODICHAT</h1>
         <div className="flex items-center gap-4">
           <button onClick={toggleDark} className="text-xl">{dark ? "☀️" : "🌙"}</button>
-          <button onClick={() => setIsCreateOpen(true)} className="text-xl">➕</button>
+          {user ? (
+            <button onClick={() => setIsCreateOpen(true)} className="text-xl">➕</button>
+          ) : null}
         </div>
       </header>
 
@@ -36,13 +45,24 @@ export default function MobileLayout({ children }) {
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around bg-white/95 dark:bg-black/95 backdrop-blur-lg border-t border-gray-100 dark:border-gray-900 py-3 px-2">
         {navItems.map((item) => (
-          <Link 
-            key={item.path} 
-            to={item.path} 
-            className={`flex flex-col items-center gap-1 transition-all ${location.pathname === item.path ? "scale-110 opacity-100" : "opacity-40 grayscale"}`}
-          >
-            <span className="text-2xl">{item.icon}</span>
-          </Link>
+          item.path ? (
+            <Link 
+              key={item.path} 
+              to={item.path} 
+              className={`flex flex-col items-center gap-1 transition-all ${location.pathname === item.path ? "scale-110 opacity-100" : "opacity-40 grayscale"}`}
+            >
+              <span className="text-2xl">{item.icon}</span>
+            </Link>
+          ) : (
+            <button
+              key={item.label}
+              type="button"
+              onClick={item.action}
+              className={`flex flex-col items-center gap-1 transition-all ${location.pathname === item.path ? "scale-110 opacity-100" : "opacity-40 grayscale"}`}
+            >
+              <span className="text-2xl">{item.icon}</span>
+            </button>
+          )
         ))}
       </nav>
 

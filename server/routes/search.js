@@ -1,14 +1,14 @@
 const router = require('express').Router();
 const Post = require('../models/Post');
 const User = require('../models/User');
-const auth = require('../middleware/auth');
+const optionalAuth = require('../middleware/optionalAuth');
 const { normalizePost } = require('../utils/assets');
 const { toPublicUser } = require('../utils/users');
 
 const escapeRegex = (value = '') =>
   value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-router.get('/', auth, async (req, res) => {
+router.get('/', optionalAuth, async (req, res) => {
   try {
     const query = req.query.q?.trim();
     if (!query) {
@@ -17,7 +17,10 @@ router.get('/', auth, async (req, res) => {
 
     const regex = new RegExp(escapeRegex(query), 'i');
 
-    const currentUser = await User.findById(req.user.id).select('blockedUsers');
+    const currentUser = req.user
+      ? await User.findById(req.user.id).select('blockedUsers')
+      : null;
+
     const [users, posts] = await Promise.all([
       User.find({
         $or: [

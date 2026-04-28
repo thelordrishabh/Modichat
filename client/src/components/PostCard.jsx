@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import ReactionPicker from "./ReactionPicker";
 import PollCard from "./PollCard";
 import ReportModal from "./ReportModal";
+import GuestActionModal from "./GuestActionModal";
 
 export default function PostCard({ post, onDelete, onUpdate }) {
   const { user } = useAuth();
@@ -25,9 +26,17 @@ export default function PostCard({ post, onDelete, onUpdate }) {
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
+  const [showGuestAction, setShowGuestAction] = useState(false);
+  const [guestActionMessage, setGuestActionMessage] = useState("like posts");
   const lastTap = useRef(0);
 
+  const isGuest = !user;
   const isOwner = user ? String(post.userId._id) === String(user._id) : false;
+
+  const openGuestAction = (action) => {
+    setGuestActionMessage(action);
+    setShowGuestAction(true);
+  };
 
   useEffect(() => {
     setLikes(post.likes.length);
@@ -44,6 +53,11 @@ export default function PostCard({ post, onDelete, onUpdate }) {
   }, [post, user?._id]);
 
   const handleLike = async () => {
+    if (isGuest) {
+      openGuestAction("like posts");
+      return;
+    }
+
     const previousLikes = likes;
     const previousLiked = isLiked;
 
@@ -119,6 +133,10 @@ export default function PostCard({ post, onDelete, onUpdate }) {
 
   const handleComment = async (e) => {
     e.preventDefault();
+    if (isGuest) {
+      openGuestAction("add comments");
+      return;
+    }
     if (!commentText.trim()) return;
 
     try {
@@ -179,7 +197,9 @@ export default function PostCard({ post, onDelete, onUpdate }) {
   const handleImageTap = () => {
     const now = Date.now();
     if (now - lastTap.current < 300) {
-      if (!isLiked) {
+      if (isGuest) {
+        openGuestAction("like posts");
+      } else if (!isLiked) {
         handleLike();
       }
       setShowHeart(true);
@@ -307,9 +327,20 @@ export default function PostCard({ post, onDelete, onUpdate }) {
 
         <div className="font-semibold text-gray-900 dark:text-white mb-2">{likes} likes</div>
         <div className="text-gray-900 dark:text-gray-200">
-          <Link to={`/profile/${post.userId._id}`} className="font-semibold mr-2">
-            {post.userId.name}
-          </Link>
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <Link to={`/profile/${post.userId._id}`} className="font-semibold mr-2">
+              {post.userId.name}
+            </Link>
+            {isGuest && !isOwner ? (
+              <button
+                type="button"
+                onClick={() => openGuestAction("follow people")}
+                className="rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700 transition hover:bg-gray-200 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+              >
+                Follow
+              </button>
+            ) : null}
+          </div>
           {(post.caption || "").split(/(#[a-zA-Z0-9_]+|@[a-zA-Z0-9_]+)/g).map((part, index) => {
             if (part.startsWith("#")) {
               return <Link key={`${part}-${index}`} to={`/hashtag/${part.slice(1)}`} className="text-blue-500 hover:underline">{part}</Link>;
@@ -328,7 +359,13 @@ export default function PostCard({ post, onDelete, onUpdate }) {
         <PollCard poll={post.poll} onVote={handleVote} isVoted={hasVoted} />
         <button
           type="button"
-          onClick={() => setShowComments((visible) => !visible)}
+          onClick={() => {
+            if (isGuest) {
+              openGuestAction("add comments");
+              return;
+            }
+            setShowComments((visible) => !visible);
+          }}
           className="mt-3 text-sm font-medium text-gray-500 transition hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
         >
           {showComments ? "Hide comments" : `View comments (${comments.length})`}
@@ -433,6 +470,11 @@ export default function PostCard({ post, onDelete, onUpdate }) {
       {showReportModal ? (
         <ReportModal targetType="post" targetId={post._id} onClose={() => setShowReportModal(false)} />
       ) : null}
+      <GuestActionModal
+        open={showGuestAction}
+        action={guestActionMessage}
+        onClose={() => setShowGuestAction(false)}
+      />
     </div>
   );
 }

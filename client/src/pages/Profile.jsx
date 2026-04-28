@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   getUser,
@@ -18,12 +18,24 @@ import {
   unblockUser
 } from "../api";
 import Avatar from "../components/Avatar";
+import GuestActionModal from "../components/GuestActionModal";
 import Layout from "../components/Layout";
 import PageFade from "../components/PageFade";
 import { useAuth } from "../context/AuthContext";
 import HighlightRow from "../components/HighlightRow";
 import LinkPreview from "../components/LinkPreview";
 import ReportModal from "../components/ReportModal";
+
+const formatRelativeTime = (value) => {
+  const diff = Date.now() - new Date(value).getTime();
+  const minutes = Math.round(diff / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+};
 
 export default function Profile() {
   const { id } = useParams();
@@ -51,8 +63,11 @@ export default function Profile() {
   const [profileViewData, setProfileViewData] = useState({ weekCount: 0, viewers: [] });
   const [showReportModal, setShowReportModal] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
+  const [showGuestPostModal, setShowGuestPostModal] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const isOwnProfile = currentUser && id ? String(currentUser._id) === String(id) : false;
+  const isGuest = !currentUser;
 
   useEffect(() => {
     if (!editAvatarFile) {
@@ -105,8 +120,15 @@ export default function Profile() {
 
   useEffect(() => {
     if (!id) return;
-    trackProfileView(id).catch(() => {});
-    getHighlights(id).then(({ data }) => setHighlights(data)).catch(() => {});
+    if (currentUser) {
+      trackProfileView(id).catch(() => {});
+    }
+    getHighlights(id).then(({ data }) => setHighlights(data)).catch(() => setHighlights(null));
+  }, [id, currentUser]);
+
+  useEffect(() => {
+    const dismissedProfiles = JSON.parse(localStorage.getItem('modichatDismissedProfileBanners') || '[]');
+    setBannerDismissed(dismissedProfiles.includes(id));
   }, [id]);
 
   useEffect(() => {
@@ -268,7 +290,7 @@ export default function Profile() {
 
   return (
     <Layout>
-      <PageFade className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+      <PageFade className="mx-auto w-full max-w-6xl px-4 py-8 pb-24 sm:px-6">
         <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-12">
           <Avatar user={profileUser} size="h-32 w-32 md:h-40 md:w-40" textSize="text-5xl" />
 
@@ -278,7 +300,14 @@ export default function Profile() {
                 <h2 className="text-3xl font-light text-gray-900 dark:text-white">{profileUser.name}</h2>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">@{profileUser.username || "user"}</p>
               </div>
-              {currentUser && currentUser._id !== profileUser._id ? (
+              {isOwnProfile ? (
+                <button
+                  onClick={openEditModal}
+                  className="px-6 py-2 rounded-xl font-semibold bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 transition"
+                >
+                  Edit Profile
+                </button>
+              ) : currentUser ? (
                 <div className="flex flex-wrap gap-2 justify-center md:justify-start">
                   <button
                     onClick={handleFollow}
@@ -319,32 +348,34 @@ export default function Profile() {
                     Report
                   </button>
                 </div>
-              ) : (
-                <button
-                  onClick={openEditModal}
-                  className="px-6 py-2 rounded-xl font-semibold bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 transition"
-                >
-                  Edit Profile
-                </button>
-              )}
+              ) : null}
             </div>
 
             <div className="flex flex-wrap justify-center md:justify-start gap-8 mb-4 text-gray-900 dark:text-white">
               <span className="text-lg"><strong className="font-semibold">{posts.length}</strong> posts</span>
-              <button
-                type="button"
-                onClick={() => openConnectionsModal("followers")}
-                className="text-lg transition hover:opacity-80"
-              >
-                <strong className="font-semibold">{profileUser.followers?.length || 0}</strong> followers
-              </button>
-              <button
-                type="button"
-                onClick={() => openConnectionsModal("following")}
-                className="text-lg transition hover:opacity-80"
-              >
-                <strong className="font-semibold">{profileUser.following?.length || 0}</strong> following
-              </button>
+              {currentUser ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => openConnectionsModal("followers")}
+                    className="text-lg transition hover:opacity-80"
+                  >
+                    <strong className="font-semibold">{profileUser.followers?.length || 0}</strong> followers
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openConnectionsModal("following")}
+                    className="text-lg transition hover:opacity-80"
+                  >
+                    <strong className="font-semibold">{profileUser.following?.length || 0}</strong> following
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="text-lg"><strong className="font-semibold">{profileUser.followers?.length || 0}</strong> followers</span>
+                  <span className="text-lg"><strong className="font-semibold">{profileUser.following?.length || 0}</strong> following</span>
+                </>
+              )}
             </div>
 
             <div className="text-gray-900 dark:text-white">
@@ -355,10 +386,106 @@ export default function Profile() {
         </div>
 
         <HighlightRow highlights={highlights} />
-        {isOwnProfile ? (
-          <div className="mb-6 rounded-3xl border border-gray-200 bg-white p-4 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
-            {profileViewData.weekCount} people viewed your profile this week.
+        {!currentUser && !isOwnProfile && !bannerDismissed ? (
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white px-5 py-4 text-sm text-gray-900 shadow-xl dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100">
+            <div className="mx-auto flex max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-semibold">Sign up to follow @{profileUser.username} and see their full content</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Create your account to like, comment, and send messages.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate('/register')}
+                  className="rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
+                >
+                  Sign Up
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const dismissedProfiles = JSON.parse(localStorage.getItem('modichatDismissedProfileBanners') || '[]');
+                    localStorage.setItem('modichatDismissedProfileBanners', JSON.stringify([...dismissedProfiles, id]));
+                    setBannerDismissed(true);
+                  }}
+                  className="text-sm font-medium text-gray-500 transition hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
           </div>
+        ) : null}
+        {isOwnProfile ? (
+          <>
+            <div className="mb-6 rounded-3xl border border-gray-200 bg-white p-4 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+              {profileViewData.weekCount} people viewed your profile this week.
+            </div>
+            {profileViewData.viewers.length > 0 ? (
+              <div className="mb-8 rounded-3xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Who Viewed My Profile</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Latest 50 views, newest first.</p>
+                  </div>
+                  <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                    {profileViewData.viewers.length} recent views
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {profileViewData.viewers.map((entry) => {
+                    const viewer = entry.viewer;
+                    return (
+                      <div key={entry._id} className="flex items-center justify-between gap-4 rounded-3xl border border-gray-100 bg-gray-50 px-4 py-4 dark:border-gray-800 dark:bg-gray-950">
+                        <div className="flex items-center gap-3">
+                          {viewer ? (
+                            <Avatar user={viewer} />
+                          ) : (
+                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-200 text-2xl text-gray-500 dark:bg-gray-800 dark:text-gray-300">
+                              👤
+                            </div>
+                          )}
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+                              {viewer ? (
+                                <Link to={`/profile/${viewer._id}`} className="hover:underline">
+                                  {viewer.name}
+                                </Link>
+                              ) : (
+                                <span>{entry.guestName || "Anonymous visitor"}</span>
+                              )}
+                              {!viewer ? (
+                                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500 dark:bg-gray-800 dark:text-gray-300">
+                                  Guest
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {viewer ? `@${viewer.username}` : entry.guestInstagram ? (
+                                <a
+                                  href={`https://instagram.com/${entry.guestInstagram.replace(/^@/, "")}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="underline"
+                                >
+                                  {entry.guestInstagram}
+                                </a>
+                              ) : (
+                                "Anonymous visitor"
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right text-sm text-gray-500 dark:text-gray-400">
+                          {formatRelativeTime(entry.viewedAt)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+          </>
         ) : null}
 
         {isOwnProfile && (
@@ -396,17 +523,24 @@ export default function Profile() {
           ) : (
             <div className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-4">
               {displayPosts.map((post) => (
-                <div
+                <button
                   key={post._id}
-                  onClick={() => navigate(`/posts/${post._id}`)}
-                  className="aspect-square bg-gray-100 dark:bg-gray-800 relative group cursor-pointer overflow-hidden"
+                  type="button"
+                  onClick={() => {
+                    if (currentUser) {
+                      navigate(`/posts/${post._id}`);
+                      return;
+                    }
+                    setShowGuestPostModal(true);
+                  }}
+                  className="aspect-square bg-gray-100 dark:bg-gray-800 relative group cursor-pointer overflow-hidden text-left"
                 >
                   <img src={getAssetUrl(post.imageUrl)} className="w-full h-full object-cover" alt="Post" />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-6 text-white font-semibold">
                     <span className="flex items-center gap-2">❤️ {post.likes.length}</span>
                     <span className="flex items-center gap-2">💬 {post.comments?.length || 0}</span>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -568,6 +702,11 @@ export default function Profile() {
             </div>
           </div>
         ) : null}
+        <GuestActionModal
+          open={isGuest && showGuestPostModal}
+          action="view this post"
+          onClose={() => setShowGuestPostModal(false)}
+        />
         {showReportModal ? (
           <ReportModal targetType="user" targetId={profileUser._id} onClose={() => setShowReportModal(false)} />
         ) : null}

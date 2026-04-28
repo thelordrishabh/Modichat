@@ -12,12 +12,22 @@ router.get('/', auth, async (req, res) => {
       Post.aggregate([
         { $match: { createdAt: { $gte: dayAgo } } },
         {
+          $lookup: {
+            from: 'comments',
+            localField: '_id',
+            foreignField: 'postId',
+            as: 'postComments'
+          }
+        },
+        {
           $addFields: {
+            commentCount: { $size: '$postComments' },
             engagementScore: {
-              $add: [{ $size: '$likes' }, { $size: '$comments' }]
+              $add: [{ $size: '$likes' }, { $size: '$postComments' }]
             }
           }
         },
+        { $project: { postComments: 0 } },
         { $sort: { engagementScore: -1 } },
         { $limit: 10 }
       ]),

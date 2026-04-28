@@ -15,6 +15,8 @@ export default function Layout({ children }) {
   const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
+    if (!user) return undefined;
+
     const loadUnread = async () => {
       try {
         const { data } = await getConversationSummaries();
@@ -27,28 +29,49 @@ export default function Layout({ children }) {
     loadUnread();
     const timer = setInterval(loadUnread, 15000);
     return () => clearInterval(timer);
-  }, []);
+  }, [user]);
 
-  const desktopNavItems = [
+  const guestDesktopNavItems = [
+    { name: "Feed", path: "/", icon: "🏠" },
+    { name: "Search", path: "/search", icon: "🔍" }
+  ];
+
+  const guestDesktopActionItems = [
+    { name: "Log In", path: "/login", icon: "🔑" },
+    { name: "Sign Up", path: "/register", icon: "📝", isPrimary: true }
+  ];
+
+  const guestMobileNavItems = [
     { name: "Home", path: "/", icon: "🏠" },
     { name: "Search", path: "/search", icon: "🔍" },
-    { name: "Trending", path: "/trending", icon: "🔥" },
-    { name: "Events", path: "/events", icon: "📅" },
-    { name: "Notifications", path: "/notifications", icon: "🔔", badge: unreadCount },
-    { name: "Messages", path: "/messages", icon: "💬", badge: unreadMessages },
-    { name: "Go Live", path: "/live", icon: "📡" },
-    { name: "Create", action: () => setIsCreateOpen(true), icon: "➕" },
-    { name: "Profile", path: `/profile/${user?._id}`, icon: "👤" },
-    { name: "Settings", path: "/settings", icon: "⚙️" }
+    { name: "Log In", path: "/login", icon: "🔑" },
+    { name: "Sign Up", path: "/register", icon: "📝" }
   ];
 
-  const mobileNavItems = [
-    { name: "Home", path: "/", icon: "🏠" },
-    { name: "Trend", path: "/trending", icon: "🔥" },
-    { name: "Create", action: () => setIsCreateOpen(true), icon: "➕" },
-    { name: "Events", path: "/events", icon: "📅" },
-    { name: "Settings", path: "/settings", icon: "⚙️" }
-  ];
+  const desktopNavItems = user
+    ? [
+        { name: "Home", path: "/", icon: "🏠" },
+        { name: "Search", path: "/search", icon: "🔍" },
+        { name: "Trending", path: "/trending", icon: "🔥" },
+        { name: "Events", path: "/events", icon: "📅" },
+        { name: "Notifications", path: "/notifications", icon: "🔔", badge: unreadCount },
+        { name: "Messages", path: "/messages", icon: "💬", badge: unreadMessages },
+        { name: "Go Live", path: "/live", icon: "📡" },
+        { name: "Create", action: () => setIsCreateOpen(true), icon: "➕" },
+        { name: "Profile", path: `/profile/${user?._id}`, icon: "👤" },
+        { name: "Settings", path: "/settings", icon: "⚙️" }
+      ]
+    : guestDesktopNavItems;
+
+  const mobileNavItems = user
+    ? [
+        { name: "Home", path: "/", icon: "🏠" },
+        { name: "Search", path: "/search", icon: "🔍" },
+        { name: "Create", action: () => setIsCreateOpen(true), icon: "➕" },
+        { name: "Events", path: "/events", icon: "📅" },
+        { name: "Profile", path: `/profile/${user?._id}`, icon: "👤" }
+      ]
+    : guestMobileNavItems;
 
   const isPathActive = (path) => {
     if (!path) return false;
@@ -114,20 +137,48 @@ export default function Layout({ children }) {
         </nav>
 
         <div className="mt-auto space-y-2 border-t border-gray-100 pt-4 dark:border-gray-700">
-          <button
-            onClick={toggleDark}
-            className="flex min-h-11 w-full items-center gap-4 rounded-2xl px-4 py-3 text-gray-700 transition hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700/70"
-          >
-            <span className="text-2xl">{dark ? "☀️" : "🌙"}</span>
-            <span className="text-base font-medium">Theme</span>
-          </button>
-          <button
-            onClick={logout}
-            className="flex min-h-11 w-full items-center gap-4 rounded-2xl px-4 py-3 text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-          >
-            <span className="text-2xl">🚪</span>
-            <span className="text-base font-medium">Logout</span>
-          </button>
+          {user ? (
+            <>
+              <button
+                onClick={toggleDark}
+                className="flex min-h-11 w-full items-center gap-4 rounded-2xl px-4 py-3 text-gray-700 transition hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700/70"
+              >
+                <span className="text-2xl">{dark ? "☀️" : "🌙"}</span>
+                <span className="text-base font-medium">Theme</span>
+              </button>
+              <button
+                onClick={logout}
+                className="flex min-h-11 w-full items-center gap-4 rounded-2xl px-4 py-3 text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+              >
+                <span className="text-2xl">🚪</span>
+                <span className="text-base font-medium">Logout</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="flex min-h-11 w-full items-center gap-4 rounded-2xl border border-gray-200 px-4 py-3 text-center text-base font-medium text-gray-700 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700/70"
+              >
+                <span className="text-2xl">🔑</span>
+                Log In
+              </Link>
+              <Link
+                to="/register"
+                className="flex min-h-11 w-full items-center gap-4 rounded-2xl bg-black px-4 py-3 text-center text-base font-medium text-white transition hover:bg-gray-800"
+              >
+                <span className="text-2xl">📝</span>
+                Sign Up
+              </Link>
+              <button
+                onClick={toggleDark}
+                className="flex min-h-11 w-full items-center gap-4 rounded-2xl px-4 py-3 text-gray-700 transition hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700/70"
+              >
+                <span className="text-2xl">{dark ? "☀️" : "🌙"}</span>
+                <span className="text-base font-medium">Theme</span>
+              </button>
+            </>
+          )}
         </div>
       </aside>
 

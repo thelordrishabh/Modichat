@@ -1,15 +1,48 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { searchEverything, getAssetUrl, getTrendingHashtags } from "../api";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  searchEverything,
+  getAssetUrl,
+  getTrendingHashtags,
+  trackProfileView
+} from "../api";
 import Avatar from "../components/Avatar";
+import GuestActionModal from "../components/GuestActionModal";
+import LetterboxModal from "../components/LetterboxModal";
 import Layout from "../components/Layout";
 import PageFade from "../components/PageFade";
+
+const GUEST_VIEW_STORAGE_KEY = "modichatGuestVisit";
+
+const getSavedGuestVisit = () => {
+  try {
+    return JSON.parse(localStorage.getItem(GUEST_VIEW_STORAGE_KEY) || "null");
+  } catch {
+    return null;
+  }
+};
+
+const saveGuestVisit = (guestName, guestInstagram) => {
+  const visitData = {
+    guestName,
+    guestInstagram,
+    visitedAt: new Date().toISOString()
+  };
+  localStorage.setItem(GUEST_VIEW_STORAGE_KEY, JSON.stringify(visitData));
+  return visitData;
+};
 
 export default function Search() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState({ users: [], posts: [] });
   const [loading, setLoading] = useState(false);
   const [hashtags, setHashtags] = useState([]);
+  const [selectedProfile, setSelectedProfile] = useState(null);
+  const [showLetterbox, setShowLetterbox] = useState(false);
+  const [showGuestPostModal, setShowGuestPostModal] = useState(false);
+  const navigate = useNavigate();
+
+  const isGuest = !localStorage.getItem("token");
 
   useEffect(() => {
     getTrendingHashtags().then(({ data }) => setHashtags(data)).catch(() => {});
@@ -50,6 +83,62 @@ export default function Search() {
 
   const hasResults = results.users.length > 0 || results.posts.length > 0;
 
+  const handleUserCardClick = async (user) => {
+    if (!isGuest) {
+      navigate(`/profile/${user._id}`);
+      return;
+    }
+
+    const savedVisit = getSavedGuestVisit();
+    if (savedVisit?.guestName) {
+      try {
+        await trackProfileView(user._id, {
+          isGuest: true,
+          guestName: savedVisit.guestName,
+          guestInstagram: savedVisit.guestInstagram || null
+        });
+      } catch (err) {
+        console.error("Could not track guest view", err);
+      }
+      navigate(`/profile/${user._id}`);
+      return;
+    }
+
+    setSelectedProfile(user);
+    setShowLetterbox(true);
+  };
+
+  const handleLetterboxSubmit = async ({ guestName, guestInstagram }) => {
+    if (!selectedProfile) return;
+    const guestData = saveGuestVisit(guestName, guestInstagram);
+    try {
+      await trackProfileView(selectedProfile._id, {
+        isGuest: true,
+        guestName: guestData.guestName,
+        guestInstagram: guestData.guestInstagram || null
+      });
+    } catch (err) {
+      console.error("Could not track guest view", err);
+    }
+    setShowLetterbox(false);
+    navigate(`/profile/${selectedProfile._id}`);
+  };
+
+  const handleLetterboxSkip = async () => {
+    if (!selectedProfile) return;
+    try {
+      await trackProfileView(selectedProfile._id, {
+        isGuest: true,
+        guestName: null,
+        guestInstagram: null
+      });
+    } catch (err) {
+      console.error("Could not track anonymous guest view", err);
+    }
+    setShowLetterbox(false);
+    navigate(`/profile/${selectedProfile._id}`);
+  };
+
   return (
     <Layout>
       <PageFade className="mx-auto w-full max-w-5xl space-y-6 px-4 sm:px-0">
@@ -69,7 +158,11 @@ export default function Search() {
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {hashtags.map((item) => (
-              <Link key={item.tag} to={`/hashtag/${item.tag}`} className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+              <Link
+                key={item.tag}
+                to={`/hashtag/${item.tag}`}
+                className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+              >
                 #{item.tag}
               </Link>
             ))}
@@ -97,19 +190,24 @@ export default function Search() {
               </div>
               <div className="space-y-3">
                 {results.users.map((resultUser) => (
-                  <Link
+                  <button
                     key={resultUser._id}
-                    to={`/profile/${resultUser._id}`}
-                    className="flex min-h-11 items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-gray-50 dark:hover:bg-gray-700/60"
+                    type="button"
+                    onClick={() => handleUserCardClick(resultUser)}
+                    className="w-full text-left"
                   >
-                    <Avatar user={resultUser} size="h-12 w-12" textSize="text-lg" />
-                    <div className="min-w-0">
-                          <div className="truncate font-semibold text-gray-900 dark:text-white">{resultUser.name} {resultUser.isVerified ? "✓" : ""}</div>
-                      <div className="truncate text-sm text-gray-500 dark:text-gray-400">
-                        @{resultUser.username || "user"}
+                    <div className="flex min-h-11 items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-gray-50 dark:hover:bg-gray-700/60">
+                      <Avatar user={resultUser} size="h-12 w-12" textSize="text-lg" />
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold text-gray-900 dark:text-white">
+                          {resultUser.name} {resultUser.isVerified ? "✓" : ""}
+                        </div>
+                        <div className="truncate text-sm text-gray-500 dark:text-gray-400">
+                          @{resultUser.username || "user"}
+                        </div>
                       </div>
                     </div>
-                  </Link>
+                  </button>
                 ))}
               </div>
             </section>
@@ -121,36 +219,84 @@ export default function Search() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {results.posts.map((post) => (
-                  <Link
-                    key={post._id}
-                    to={`/posts/${post._id}`}
-                    className="block overflow-hidden rounded-3xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900 transition hover:border-gray-400 dark:hover:border-gray-500"
-                  >
-                    <img
-                      src={getAssetUrl(post.imageUrl)}
-                      alt="Search result"
-                      className="aspect-square w-full object-cover"
-                    />
-                    <div className="space-y-3 p-4">
-                      <Link to={`/profile/${post.userId._id}`} className="flex items-center gap-3" onClick={e => e.stopPropagation()}>
-                        <Avatar user={post.userId} />
-                        <div className="min-w-0">
-                          <div className="truncate font-semibold text-gray-900 dark:text-white">{post.userId.name}</div>
-                          <div className="truncate text-sm text-gray-500 dark:text-gray-400">
-                            @{post.userId.username || "user"}
+                  isGuest ? (
+                    <button
+                      key={post._id}
+                      type="button"
+                      onClick={() => setShowGuestPostModal(true)}
+                      className="block w-full text-left overflow-hidden rounded-3xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900 transition hover:border-gray-400 dark:hover:border-gray-500"
+                    >
+                      <img
+                        src={getAssetUrl(post.imageUrl)}
+                        alt="Search result"
+                        className="aspect-square w-full object-cover"
+                      />
+                      <div className="space-y-3 p-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar user={post.userId} />
+                          <div className="min-w-0">
+                            <div className="truncate font-semibold text-gray-900 dark:text-white">{post.userId.name}</div>
+                            <div className="truncate text-sm text-gray-500 dark:text-gray-400">
+                              @{post.userId.username || "user"}
+                            </div>
                           </div>
                         </div>
-                      </Link>
-                      <p className="line-clamp-3 text-sm text-gray-700 dark:text-gray-300">
-                        {post.caption || "No caption"}
-                      </p>
-                    </div>
-                  </Link>
+                        <p className="line-clamp-3 text-sm text-gray-700 dark:text-gray-300">
+                          {post.caption || "No caption"}
+                        </p>
+                      </div>
+                    </button>
+                  ) : (
+                    <Link
+                      key={post._id}
+                      to={`/posts/${post._id}`}
+                      className="block overflow-hidden rounded-3xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900 transition hover:border-gray-400 dark:hover:border-gray-500"
+                    >
+                      <img
+                        src={getAssetUrl(post.imageUrl)}
+                        alt="Search result"
+                        className="aspect-square w-full object-cover"
+                      />
+                      <div className="space-y-3 p-4">
+                        <Link
+                          to={`/profile/${post.userId._id}`}
+                          className="flex items-center gap-3"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Avatar user={post.userId} />
+                          <div className="min-w-0">
+                            <div className="truncate font-semibold text-gray-900 dark:text-white">{post.userId.name}</div>
+                            <div className="truncate text-sm text-gray-500 dark:text-gray-400">
+                              @{post.userId.username || "user"}
+                            </div>
+                          </div>
+                        </Link>
+                        <p className="line-clamp-3 text-sm text-gray-700 dark:text-gray-300">
+                          {post.caption || "No caption"}
+                        </p>
+                      </div>
+                    </Link>
+                  )
                 ))}
               </div>
             </section>
           </div>
         )}
+
+        <LetterboxModal
+          open={showLetterbox}
+          targetUser={selectedProfile}
+          initialGuestData={getSavedGuestVisit()}
+          onClose={() => setShowLetterbox(false)}
+          onSubmit={handleLetterboxSubmit}
+          onSkip={handleLetterboxSkip}
+        />
+
+        <GuestActionModal
+          open={showGuestPostModal}
+          action="view this post"
+          onClose={() => setShowGuestPostModal(false)}
+        />
       </PageFade>
     </Layout>
   );

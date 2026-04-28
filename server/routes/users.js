@@ -308,19 +308,39 @@ router.get('/:id', optionalAuth, async (req, res) => {
   }
 });
 
-router.put('/:id/view', auth, async (req, res) => {
+router.put('/:id/view', optionalAuth, async (req, res) => {
   try {
-    if (req.params.id === req.user.id) {
+    if (req.user && req.params.id === req.user.id) {
       return res.json({ message: 'Own profile view ignored' });
     }
+
     const profileUser = await User.findById(req.params.id);
     if (!profileUser) return res.status(404).json({ message: 'User not found' });
 
-    profileUser.profileViews = (profileUser.profileViews || []).filter(
-      (view) => String(view.viewer) !== req.user.id
-    );
-    profileUser.profileViews.unshift({ viewer: req.user.id, viewedAt: new Date() });
-    profileUser.profileViews = profileUser.profileViews.slice(0, 100);
+    if (req.user) {
+      profileUser.profileViews = (profileUser.profileViews || []).filter(
+        (view) => String(view.viewer) !== req.user.id
+      );
+      profileUser.profileViews.unshift({ viewer: req.user.id, viewedAt: new Date() });
+    } else {
+      const isGuest = req.body.isGuest === true || req.body.isGuest === 'true';
+      if (!isGuest) {
+        return res.status(400).json({ message: 'Guest view requires guest information' });
+      }
+
+      const guestName = req.body.guestName?.trim() || null;
+      const guestInstagram = req.body.guestInstagram?.trim() || null;
+
+      profileUser.profileViews.unshift({
+        viewer: null,
+        guestName,
+        guestInstagram,
+        isGuest: true,
+        viewedAt: new Date()
+      });
+    }
+
+    profileUser.profileViews = (profileUser.profileViews || []).slice(0, 100);
     await profileUser.save();
     res.json({ message: 'Profile view tracked' });
   } catch (err) {
@@ -328,18 +348,23 @@ router.put('/:id/view', auth, async (req, res) => {
   }
 });
 
-router.get('/profile-views/me', auth, async (req, res) => {
+router.get('/profile-views', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
       .populate('profileViews.viewer', 'name username avatar profilePicture isVerified')
       .select('profileViews');
 
+    const sortedViews = (user.profileViews || [])
+      .slice()
+      .sort((a, b) => new Date(b.viewedAt) - new Date(a.viewedAt))
+      .slice(0, 50);
+
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const weekViews = user.profileViews.filter((entry) => new Date(entry.viewedAt) >= weekAgo);
+    const weekCount = (user.profileViews || []).filter((entry) => new Date(entry.viewedAt) >= weekAgo).length;
 
     res.json({
-      weekCount: weekViews.length,
-      viewers: user.profileViews.slice(0, 20)
+      weekCount,
+      viewers: sortedViews
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

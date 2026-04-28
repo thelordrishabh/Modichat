@@ -287,6 +287,36 @@ router.get('/feed', auth, async (req, res) => {
   }
 });
 
+router.get('/global', optionalAuth, async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
+
+    const posts = await Post.find()
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit + 1)
+      .populate(postPopulate);
+
+    const hasMore = posts.length > limit;
+    const sliced = hasMore ? posts.slice(0, limit) : posts;
+    const savedPostIds = req.user ? await getSavedPostIds(req.user.id) : [];
+
+    res.set('X-Has-More', hasMore ? 'true' : 'false');
+    res.set('X-Page', String(page));
+    res.set('X-Limit', String(limit));
+    res.json(
+      sliced.map((post) => {
+        const normalized = normalizePost(req, post);
+        normalized.saved = savedPostIds.includes(String(post._id));
+        return normalized;
+      })
+    );
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 router.get('/user/:userId', optionalAuth, async (req, res) => {
   try {
     const owner = await User.findById(req.params.userId).select('isPrivate followers blockedUsers');
