@@ -1,3 +1,5 @@
+const path = require('path');
+const fs = require('fs');
 const { v2: cloudinary } = require('cloudinary');
 
 const hasCloudinaryConfig = Boolean(
@@ -13,6 +15,18 @@ if (hasCloudinaryConfig) {
     api_secret: process.env.CLOUDINARY_API_SECRET
   });
 }
+
+// Local uploads dir — lives inside the server folder so it survives restarts
+const LOCAL_UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+fs.mkdirSync(LOCAL_UPLOADS_DIR, { recursive: true });
+
+const saveToLocalDisk = (file) => {
+  const ext = (file.originalname || '').split('.').pop() || 'bin';
+  const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const filepath = path.join(LOCAL_UPLOADS_DIR, filename);
+  fs.writeFileSync(filepath, file.buffer);
+  return `/uploads/${filename}`;
+};
 
 const uploadAsset = async (file, options = {}) => {
   if (!file) return '';
@@ -40,7 +54,8 @@ const uploadAsset = async (file, options = {}) => {
     return uploadedAsset.secure_url;
   }
 
-  return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+  // No Cloudinary — save to local disk for persistence across restarts
+  return saveToLocalDisk(file);
 };
 
 const uploadImage = async (file, options = {}) =>

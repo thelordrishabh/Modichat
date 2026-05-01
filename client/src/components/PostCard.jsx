@@ -256,7 +256,7 @@ export default function PostCard({ post, onDelete, onUpdate }) {
       </div>
 
       <div
-        className="relative w-full overflow-hidden bg-black"
+        className="relative w-full overflow-hidden bg-gray-100 dark:bg-gray-900"
         onClick={handleImageTap}
         onTouchEnd={(e) => { e.preventDefault(); handleImageTap(); }}
       >
@@ -269,6 +269,10 @@ export default function PostCard({ post, onDelete, onUpdate }) {
             loop
             controls
             playsInline
+            onError={(e) => {
+              e.target.style.display = "none";
+              e.target.parentNode.querySelector(".media-fallback").style.display = "flex";
+            }}
           />
         ) : (
           <img
@@ -276,8 +280,19 @@ export default function PostCard({ post, onDelete, onUpdate }) {
             alt="Post"
             className="w-full aspect-square object-contain"
             style={{ filter: post.filter && post.filter !== "normal" ? undefined : undefined }}
+            onError={(e) => {
+              e.target.style.display = "none";
+              e.target.parentNode.querySelector(".media-fallback").style.display = "flex";
+            }}
           />
         )}
+        <div
+          className="media-fallback w-full aspect-square items-center justify-center flex-col gap-3 bg-gray-100 dark:bg-gray-800"
+          style={{ display: "none" }}
+        >
+          <span className="text-5xl">🖼️</span>
+          <p className="text-sm text-gray-400 dark:text-gray-500">Image no longer available</p>
+        </div>
         {showHeart && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <span className="text-6xl text-red-500 opacity-0 animate-heart-pop">❤️</span>

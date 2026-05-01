@@ -125,7 +125,6 @@ const connectDB = async () => {
   await dbConnectPromise;
 };
 
-// Middleware to ensure DB connection
 app.use(async (req, res, next) => {
   try {
     await connectDB();
@@ -135,7 +134,6 @@ app.use(async (req, res, next) => {
   }
 });
 
-// Health check route
 app.get('/api/health', async (req, res, next) => {
   try {
     await connectDB();
@@ -155,13 +153,11 @@ app.get('/api/health', async (req, res, next) => {
   }
 });
 
-// Serve uploads statically
 if (isVercel) {
   app.use('/uploads', express.static(bundledUploadsDir));
 }
 app.use('/uploads', express.static(runtimeUploadsDir));
 
-// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);
@@ -178,7 +174,6 @@ app.use('/api/badges', badgesRoutes);
 app.use('/api/tips', tipsRoutes);
 app.use('/api/utils', utilsRoutes);
 
-// Error handler
 app.use((err, req, res, next) => {
   console.error('Express error:', err);
   res.status(500).json({
@@ -188,7 +183,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Serve static assets in production (Render)
 if (!isVercel) {
   const distPath = path.join(__dirname, '../client/dist');
   app.use(express.static(distPath));

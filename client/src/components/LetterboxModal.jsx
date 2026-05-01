@@ -1,19 +1,109 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Avatar from "./Avatar";
+import { resolveInstagramProfile, searchInstagramProfiles } from "../api";
 
 export default function LetterboxModal({ open, targetUser, initialGuestData, onSubmit, onSkip, onClose }) {
   const [guestName, setGuestName] = useState("");
   const [guestInstagram, setGuestInstagram] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [selectedSuggestion, setSelectedSuggestion] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [instagramError, setInstagramError] = useState("");
+  const [isResolving, setIsResolving] = useState(false);
+
+  const normalizedHandle = useMemo(
+    () => guestInstagram.trim().replace(/^@+/, "").toLowerCase(),
+    [guestInstagram]
+  );
 
   useEffect(() => {
     if (!open) return;
     setGuestName(initialGuestData?.guestName || "");
     setGuestInstagram(initialGuestData?.guestInstagram || "");
+    setSuggestions([]);
+    setSelectedSuggestion(null);
+    setInstagramError("");
   }, [open, initialGuestData]);
 
   if (!open || !targetUser) return null;
 
   const isSubmitEnabled = guestName.trim().length > 0;
+  const showSuggestions = normalizedHandle.length >= 2 && suggestions.length > 0;
+
+  const resolveTypedHandle = async (handle) => {
+    const cleanHandle = handle.trim().replace(/^@+/, "");
+    if (!cleanHandle) return null;
+    const { data } = await resolveInstagramProfile(cleanHandle);
+    return data;
+  };
+
+  const handleSuggestionSelect = (profile) => {
+    setGuestInstagram(profile.username);
+    setSelectedSuggestion(profile);
+    setSuggestions([]);
+    setInstagramError("");
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!isSubmitEnabled || isResolving) return;
+
+    const cleanName = guestName.trim();
+    const cleanHandle = guestInstagram.trim();
+
+    if (!cleanHandle) {
+      onSubmit({ guestName: cleanName, guestInstagram: null });
+      return;
+    }
+
+    setInstagramError("");
+    setIsResolving(true);
+    try {
+      const resolved = await resolveTypedHandle(cleanHandle);
+      setGuestInstagram(resolved.username);
+      setSelectedSuggestion(resolved);
+      onSubmit({
+        guestName: cleanName,
+        guestInstagram: resolved.username
+      });
+    } catch {
+      setInstagramError("This Instagram username does not exist. Pick a valid suggestion or enter a real handle.");
+    } finally {
+      setIsResolving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!open || normalizedHandle.length < 2) {
+      setSuggestions([]);
+      setIsSearching(false);
+      return;
+    }
+
+    let cancelled = false;
+    const timeoutId = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const { data } = await searchInstagramProfiles(normalizedHandle);
+        if (!cancelled) {
+          setSuggestions(data || []);
+        }
+      } catch {
+        if (!cancelled) {
+          setSuggestions([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsSearching(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [normalizedHandle, open]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
@@ -47,7 +137,7 @@ export default function LetterboxModal({ open, targetUser, initialGuestData, onS
           <p className="text-sm text-gray-500 dark:text-gray-400">Your name is required so the profile owner can see your visit.</p>
         </div>
 
-        <form className="mt-6 space-y-4" onSubmit={(e) => { e.preventDefault(); if (isSubmitEnabled) onSubmit({ guestName: guestName.trim(), guestInstagram: guestInstagram.trim() || null }); }}>
+        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <label className="block space-y-2">
             <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Your Name</span>
             <input
@@ -63,19 +153,74 @@ export default function LetterboxModal({ open, targetUser, initialGuestData, onS
             <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Your Instagram Username</span>
             <input
               value={guestInstagram}
-              onChange={(e) => setGuestInstagram(e.target.value)}
+              onChange={(e) => {
+                setGuestInstagram(e.target.value);
+                setInstagramError("");
+                setSelectedSuggestion(null);
+              }}
               placeholder="@yourusername"
               className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             />
           </label>
 
+          {isSearching ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">Checking Instagram profiles...</p>
+          ) : null}
+
+          {showSuggestions ? (
+            <div className="max-h-56 overflow-y-auto rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+              {suggestions.map((profile) => (
+                <button
+                  key={profile.username}
+                  type="button"
+                  onClick={() => handleSuggestionSelect(profile)}
+                  className="flex w-full items-center gap-3 border-b border-gray-200 px-3 py-2 text-left last:border-b-0 hover:bg-white dark:border-gray-700 dark:hover:bg-gray-700"
+                >
+                  <img
+                    src={profile.profilePicUrl}
+                    alt={profile.username}
+                    className="h-9 w-9 rounded-full border border-gray-200 object-cover dark:border-gray-600"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+                      {profile.username}
+                      {profile.isVerified ? " ✓" : ""}
+                    </p>
+                    <p className="truncate text-xs text-gray-500 dark:text-gray-400">{profile.fullName}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {selectedSuggestion?.profilePicUrl ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
+              <img
+                src={selectedSuggestion.profilePicUrl}
+                alt={selectedSuggestion.username}
+                className="h-10 w-10 rounded-full border border-gray-200 object-cover dark:border-gray-600"
+              />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+                  {selectedSuggestion.username}
+                  {selectedSuggestion.isVerified ? " ✓" : ""}
+                </p>
+                <p className="truncate text-xs text-gray-500 dark:text-gray-400">{selectedSuggestion.fullName}</p>
+              </div>
+            </div>
+          ) : null}
+
+          {instagramError ? (
+            <p className="text-sm font-medium text-red-500">{instagramError}</p>
+          ) : null}
+
           <div className="space-y-3">
             <button
               type="submit"
-              disabled={!isSubmitEnabled}
+              disabled={!isSubmitEnabled || isResolving}
               className="flex w-full items-center justify-center rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Visit Profile →
+              {isResolving ? "Verifying Instagram..." : "Visit Profile →"}
             </button>
             <button
               type="button"

@@ -29,9 +29,25 @@ export default function StoryViewer({ stories = [], initialIndex = 0, onClose, o
       <button type="button" onClick={() => setIndex((prev) => Math.min(stories.length - 1, prev + 1))} className="absolute right-4 top-1/2 -translate-y-1/2 text-4xl text-white">›</button>
       <div className="w-full max-w-md overflow-hidden rounded-3xl bg-black">
         {active.mediaType === "video" ? (
-          <video src={active.mediaUrl} className="max-h-[80vh] w-full object-cover" autoPlay muted controls />
+          <video
+            src={active.mediaUrl}
+            className="max-h-[80vh] w-full object-cover"
+            autoPlay muted controls
+            onError={(e) => { e.target.style.display = "none"; }}
+          />
         ) : (
-          <img src={active.mediaUrl} alt="Story" className="max-h-[80vh] w-full object-cover" />
+          <img
+            src={active.mediaUrl}
+            alt="Story"
+            className="max-h-[80vh] w-full object-cover"
+            onError={(e) => {
+              e.target.style.display = "none";
+              const fallback = document.createElement("div");
+              fallback.className = "flex flex-col items-center justify-center h-64 gap-2";
+              fallback.innerHTML = '<span style="font-size:3rem">🖼️</span><p style="color:#9ca3af;font-size:0.875rem">Image no longer available</p>';
+              e.target.parentNode.appendChild(fallback);
+            }}
+          />
         )}
         {active.musicTrack?.title ? (
           <div className="flex items-center justify-between bg-black/70 px-3 py-2 text-xs text-white">

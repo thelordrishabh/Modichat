@@ -523,24 +523,38 @@ export default function Profile() {
           ) : (
             <div className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-4">
               {displayPosts.map((post) => (
-                <button
-                  key={post._id}
-                  type="button"
-                  onClick={() => {
-                    if (currentUser) {
-                      navigate(`/posts/${post._id}`);
-                      return;
-                    }
-                    setShowGuestPostModal(true);
-                  }}
-                  className="aspect-square bg-gray-100 dark:bg-gray-800 relative group cursor-pointer overflow-hidden text-left"
-                >
-                  <img src={getAssetUrl(post.imageUrl)} className="w-full h-full object-cover" alt="Post" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-6 text-white font-semibold">
-                    <span className="flex items-center gap-2">❤️ {post.likes.length}</span>
-                    <span className="flex items-center gap-2">💬 {post.comments?.length || 0}</span>
-                  </div>
-                </button>
+                  <button
+                    key={post._id}
+                    type="button"
+                    onClick={() => {
+                      if (currentUser) {
+                        navigate(`/posts/${post._id}`);
+                        return;
+                      }
+                      setShowGuestPostModal(true);
+                    }}
+                    className="aspect-square bg-gray-100 dark:bg-gray-800 relative group cursor-pointer overflow-hidden text-left"
+                  >
+                    <img
+                      src={getAssetUrl(post.imageUrl || post.mediaUrl)}
+                      className="w-full h-full object-cover"
+                      alt="Post"
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                        e.target.parentNode.querySelector(".thumb-fallback").style.display = "flex";
+                      }}
+                    />
+                    <div
+                      className="thumb-fallback absolute inset-0 items-center justify-center flex-col gap-1 bg-gray-100 dark:bg-gray-800 text-gray-400"
+                      style={{ display: "none" }}
+                    >
+                      <span className="text-3xl">🖼️</span>
+                    </div>
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-6 text-white font-semibold">
+                      <span className="flex items-center gap-2">❤️ {post.likes.length}</span>
+                      <span className="flex items-center gap-2">💬 {post.comments?.length || 0}</span>
+                    </div>
+                  </button>
               ))}
             </div>
           )}

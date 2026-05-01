@@ -119,6 +119,9 @@ export const rsvpEvent = (id, status) => API.put(`/events/${id}/rsvp`, { status 
 // Utils
 export const getLinkPreview = (url) => API.get(`/utils/link-preview?url=${encodeURIComponent(url)}`);
 export const searchMusicTracks = (q) => API.get(`/utils/music/search?q=${encodeURIComponent(q)}`);
+export const searchInstagramProfiles = (q) => PUBLIC_API.get(`/utils/instagram/search?q=${encodeURIComponent(q)}`);
+export const resolveInstagramProfile = (username) =>
+  PUBLIC_API.get(`/utils/instagram/profile?username=${encodeURIComponent(username)}`);
 
 // Coins
 export const purchaseBadge = (data) => API.post("/badges", data);
