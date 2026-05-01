@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const https = require('https');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
 const Notification = require('../models/Notification');
@@ -7,6 +8,11 @@ const auth = require('../middleware/auth');
 const optionalAuth = require('../middleware/optionalAuth');
 const { toPublicUser, ensureUniqueUsername, normalizeUsername } = require('../utils/users');
 const { uploadImage } = require('../utils/cloudinary');
+
+const INSTAGRAM_BASE_HEADERS = {
+  'User-Agent': 'Mozilla/5.0',
+  Accept: '*/*'
+};
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -118,6 +124,115 @@ const toggleFollow = async (req, res) => {
 };
 
 const toPublicUserList = (req, users = []) => users.map((user) => toPublicUser(req, user));
+
+const sanitizeInstagramHandle = (value = '') =>
+  value
+    .trim()
+    .replace(/^@+/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9._]/g, '');
+
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const decodeJsonEscaped = (value = '') => {
+  try {
+    return JSON.parse(`"${value}"`);
+  } catch {
+    return value;
+  }
+};
+
+const decodeHtmlEntities = (value = '') =>
+  value
+    .replace(/&amp;/g, '&')
+    .replace(/&#x3D;/g, '=');
+
+const getTextWithHttps = (url, headers = {}) =>
+  new Promise((resolve, reject) => {
+    https
+      .get(url, { headers }, (response) => {
+        let body = '';
+        response.setEncoding('utf8');
+        response.on('data', (chunk) => {
+          body += chunk;
+        });
+        response.on('end', () => {
+          resolve({
+            ok: response.statusCode >= 200 && response.statusCode < 300,
+            body
+          });
+        });
+      })
+      .on('error', reject);
+  });
+
+const getInstagramProfileImageUrl = async (username) => {
+  const webInfoResponse = await fetch(
+    `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`,
+    {
+      method: 'GET',
+      headers: {
+        ...INSTAGRAM_BASE_HEADERS,
+        'x-ig-app-id': '936619743392459'
+      }
+    }
+  );
+
+  if (webInfoResponse.ok) {
+    const payload = await webInfoResponse.json().catch(() => ({}));
+    const profile = payload?.data?.user;
+    if (sanitizeInstagramHandle(profile?.username || '') === username && profile?.profile_pic_url) {
+      return profile.profile_pic_url;
+    }
+  }
+
+  const response = await getTextWithHttps(`https://www.instagram.com/${encodeURIComponent(username)}/`, {
+    ...INSTAGRAM_BASE_HEADERS,
+    Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+  });
+
+  if (!response.ok) return '';
+
+  const html = response.body;
+  const usernamePattern = new RegExp(`"username":"${escapeRegex(username)}"`, 'i');
+  if (!usernamePattern.test(html)) return '';
+
+  const profilePicRaw =
+    html.match(/"profile_pic_url_hd":"([^"]+)"/)?.[1] ||
+    html.match(/"profile_pic_url":"([^"]+)"/)?.[1] ||
+    '';
+
+  if (profilePicRaw) {
+    return decodeHtmlEntities(decodeJsonEscaped(profilePicRaw).replace(/\\u0026/g, '&'));
+  }
+
+  const cdnImageUrl = html.match(/https:\/\/scontent[^"'<>]+\/v\/t51\.82787-19\/[^"'<>]+/)?.[0] || '';
+  return decodeHtmlEntities(cdnImageUrl);
+};
+
+const fetchInstagramAvatarResponse = async (username) => {
+  const unavatarResponse = await fetch(`https://unavatar.io/instagram/${encodeURIComponent(username)}`);
+  const unavatarContentType = unavatarResponse.headers.get('content-type') || '';
+
+  if (unavatarResponse.ok && unavatarContentType.startsWith('image/')) {
+    return unavatarResponse;
+  }
+
+  const instagramImageUrl = await getInstagramProfileImageUrl(username);
+  if (!instagramImageUrl) return null;
+
+  const instagramImageResponse = await fetch(instagramImageUrl, {
+    method: 'GET',
+    headers: INSTAGRAM_BASE_HEADERS
+  });
+  const instagramContentType = instagramImageResponse.headers.get('content-type') || '';
+
+  if (!instagramImageResponse.ok || !instagramContentType.startsWith('image/')) {
+    return null;
+  }
+
+  return instagramImageResponse;
+};
 
 router.get('/me', auth, async (req, res) => {
   try {
@@ -278,6 +393,29 @@ router.get('/profile-views', auth, async (req, res) => {
   }
 });
 
+router.get('/instagram-avatar/:username', async (req, res) => {
+  try {
+    const username = sanitizeInstagramHandle(req.params.username);
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+
+    const response = await fetchInstagramAvatarResponse(username);
+    if (!response) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    const buffer = await response.arrayBuffer();
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+
+    res.set('Content-Type', contentType);
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get a user
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
@@ -330,11 +468,13 @@ router.put('/:id/view', optionalAuth, async (req, res) => {
 
       const guestName = req.body.guestName?.trim() || null;
       const guestInstagram = req.body.guestInstagram?.trim() || null;
+      const guestInstagramAvatar = req.body.guestInstagramAvatar?.trim() || null;
 
       profileUser.profileViews.unshift({
         viewer: null,
         guestName,
         guestInstagram,
+        guestInstagramAvatar,
         isGuest: true,
         viewedAt: new Date()
       });

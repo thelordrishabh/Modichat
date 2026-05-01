@@ -20,6 +20,7 @@ const UserSchema = new mongoose.Schema({
     viewer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     guestName: { type: String, default: null },
     guestInstagram: { type: String, default: null },
+    guestInstagramAvatar: { type: String, default: null },
     isGuest: { type: Boolean, default: false },
     viewedAt: { type: Date, default: Date.now }
   }],

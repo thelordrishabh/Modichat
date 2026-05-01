@@ -440,6 +440,17 @@ export default function Profile() {
                         <div className="flex items-center gap-3">
                           {viewer ? (
                             <Avatar user={viewer} />
+                          ) : entry.guestInstagramAvatar ? (
+                            <img
+                              src={entry.guestInstagramAvatar}
+                              alt={entry.guestName || "Instagram visitor"}
+                              loading="lazy"
+                              className="h-10 w-10 rounded-full object-cover"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.style.display = "none";
+                              }}
+                            />
                           ) : (
                             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-200 text-2xl text-gray-500 dark:bg-gray-800 dark:text-gray-300">
                               👤

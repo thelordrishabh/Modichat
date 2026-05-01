@@ -22,10 +22,11 @@ const getSavedGuestVisit = () => {
   }
 };
 
-const saveGuestVisit = (guestName, guestInstagram) => {
+const saveGuestVisit = (guestName, guestInstagram, guestInstagramAvatar) => {
   const visitData = {
     guestName,
     guestInstagram,
+    guestInstagramAvatar,
     visitedAt: new Date().toISOString()
   };
   localStorage.setItem(GUEST_VIEW_STORAGE_KEY, JSON.stringify(visitData));
@@ -95,7 +96,8 @@ export default function Search() {
         await trackProfileView(user._id, {
           isGuest: true,
           guestName: savedVisit.guestName,
-          guestInstagram: savedVisit.guestInstagram || null
+          guestInstagram: savedVisit.guestInstagram || null,
+          guestInstagramAvatar: savedVisit.guestInstagramAvatar || null
         });
       } catch (err) {
         console.error("Could not track guest view", err);
@@ -108,14 +110,15 @@ export default function Search() {
     setShowLetterbox(true);
   };
 
-  const handleLetterboxSubmit = async ({ guestName, guestInstagram }) => {
+  const handleLetterboxSubmit = async ({ guestName, guestInstagram, guestInstagramAvatar }) => {
     if (!selectedProfile) return;
-    const guestData = saveGuestVisit(guestName, guestInstagram);
+    const guestData = saveGuestVisit(guestName, guestInstagram, guestInstagramAvatar);
     try {
       await trackProfileView(selectedProfile._id, {
         isGuest: true,
         guestName: guestData.guestName,
-        guestInstagram: guestData.guestInstagram || null
+        guestInstagram: guestData.guestInstagram || null,
+        guestInstagramAvatar: guestData.guestInstagramAvatar || null
       });
     } catch (err) {
       console.error("Could not track guest view", err);

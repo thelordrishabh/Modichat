@@ -1,27 +1,106 @@
 import { useEffect, useState } from "react";
 import Avatar from "./Avatar";
+import { searchInstagramUsers } from "../utils/instagramSearch";
 
 export default function LetterboxModal({ open, targetUser, initialGuestData, onSubmit, onSkip, onClose }) {
   const [guestName, setGuestName] = useState("");
   const [guestInstagram, setGuestInstagram] = useState("");
+  const [instagramResults, setInstagramResults] = useState([]);
+  const [instagramLoading, setInstagramLoading] = useState(false);
+  const [selectedInstagramProfile, setSelectedInstagramProfile] = useState(null);
+  const [showInstagramDropdown, setShowInstagramDropdown] = useState(false);
+  const [profileImageLoading, setProfileImageLoading] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setGuestName(initialGuestData?.guestName || "");
     setGuestInstagram(initialGuestData?.guestInstagram || "");
+    setSelectedInstagramProfile(
+      initialGuestData?.guestInstagram && initialGuestData?.guestInstagramAvatar
+        ? {
+            username: initialGuestData.guestInstagram.replace(/^@+/, ""),
+            avatarUrl: initialGuestData.guestInstagramAvatar,
+            displayName: initialGuestData.guestInstagram.replace(/^@+/, ""),
+            isReal: true
+          }
+        : null
+    );
+    setInstagramResults([]);
+    setShowInstagramDropdown(false);
+    setProfileImageLoading(Boolean(initialGuestData?.guestInstagramAvatar));
   }, [open, initialGuestData]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const cleanQuery = guestInstagram.replace(/^@+/, "").trim().toLowerCase();
+    if (cleanQuery.length < 2 || selectedInstagramProfile?.username === cleanQuery) {
+      setInstagramResults([]);
+      setInstagramLoading(false);
+      return undefined;
+    }
+
+    let isCancelled = false;
+    setInstagramLoading(true);
+    setShowInstagramDropdown(true);
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        const results = await searchInstagramUsers(cleanQuery);
+        if (!isCancelled) {
+          setInstagramResults(results);
+        }
+      } catch {
+        if (!isCancelled) {
+          setInstagramResults([]);
+        }
+      } finally {
+        if (!isCancelled) {
+          setInstagramLoading(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [guestInstagram, open, selectedInstagramProfile]);
 
   if (!open || !targetUser) return null;
 
   const isSubmitEnabled = guestName.trim().length > 0;
+  const cleanInstagramQuery = guestInstagram.replace(/^@+/, "").trim().toLowerCase();
+  const shouldShowNoResults = !instagramLoading && cleanInstagramQuery.length >= 2 && instagramResults.length === 0 && !selectedInstagramProfile;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isSubmitEnabled) return;
 
     const cleanName = guestName.trim();
-    const cleanHandle = guestInstagram.trim().replace(/^@+/, "");
-    onSubmit({ guestName: cleanName, guestInstagram: cleanHandle || null });
+    const cleanHandle = selectedInstagramProfile?.username || guestInstagram.trim().replace(/^@+/, "");
+    onSubmit({
+      guestName: cleanName,
+      guestInstagram: cleanHandle || null,
+      guestInstagramAvatar: selectedInstagramProfile?.avatarUrl || null
+    });
+  };
+
+  const handleInstagramInputChange = (e) => {
+    setGuestInstagram(e.target.value);
+    setSelectedInstagramProfile(null);
+    setProfileImageLoading(false);
+    if (e.target.value.replace(/^@+/, "").trim().length >= 2) {
+      setShowInstagramDropdown(true);
+    }
+  };
+
+  const handleInstagramSelect = (profile) => {
+    setSelectedInstagramProfile(profile);
+    setGuestInstagram(profile.username);
+    setInstagramResults([]);
+    setShowInstagramDropdown(false);
+    setProfileImageLoading(true);
   };
 
   return (
@@ -68,18 +147,117 @@ export default function LetterboxModal({ open, targetUser, initialGuestData, onS
             />
           </label>
 
-          <label className="block space-y-2">
+          <label className="relative block space-y-2">
             <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Your Instagram Username</span>
             <input
               value={guestInstagram}
-              onChange={(e) => setGuestInstagram(e.target.value)}
+              onChange={handleInstagramInputChange}
+              onFocus={() => {
+                if (cleanInstagramQuery.length >= 2 && !selectedInstagramProfile) {
+                  setShowInstagramDropdown(true);
+                }
+              }}
               placeholder="@yourusername"
               className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             />
+            {showInstagramDropdown && cleanInstagramQuery.length >= 2 && !selectedInstagramProfile ? (
+              <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900">
+                {instagramLoading ? (
+                  <div className="flex items-center gap-3 px-4 py-4">
+                    <div className="h-11 w-11 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+                      <div className="h-3 w-24 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+                    </div>
+                  </div>
+                ) : null}
+
+                {!instagramLoading && instagramResults.map((profile) => (
+                  <button
+                    key={profile.username}
+                    type="button"
+                    onClick={() => handleInstagramSelect(profile)}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-gray-50 dark:hover:bg-gray-800"
+                  >
+                    <img
+                      src={profile.avatarUrl}
+                      alt={profile.username}
+                      loading="lazy"
+                      className="h-11 w-11 rounded-full object-cover"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.style.display = "none";
+                        e.target.nextSibling.style.display = "flex";
+                      }}
+                    />
+                    <div
+                      className="hidden h-11 w-11 items-center justify-center rounded-full text-lg font-bold text-white"
+                      style={{
+                        background: "linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045)"
+                      }}
+                    >
+                      {profile.username[0].toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">@{profile.username}</p>
+                      <p className="truncate text-xs text-gray-500 dark:text-gray-400">Instagram account found</p>
+                    </div>
+                  </button>
+                ))}
+
+                {shouldShowNoResults ? (
+                  <div className="px-4 py-5 text-center">
+                    <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-xl font-bold text-gray-400 dark:bg-gray-800 dark:text-gray-500">
+                      @
+                    </div>
+                    <p className="mt-3 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                      No Instagram account found for @{cleanInstagramQuery}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Double check the spelling and try again
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </label>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Instagram suggestions are disabled to avoid showing irrelevant handles.
-          </p>
+
+          {selectedInstagramProfile ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+              <div className="relative h-11 w-11 shrink-0">
+                {profileImageLoading ? (
+                  <div className="absolute inset-0 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700" />
+                ) : null}
+                <img
+                  src={selectedInstagramProfile.avatarUrl}
+                  alt={selectedInstagramProfile.username}
+                  loading="lazy"
+                  className="h-11 w-11 rounded-full object-cover"
+                  onLoad={() => setProfileImageLoading(false)}
+                  onError={(e) => {
+                    setProfileImageLoading(false);
+                    e.target.onerror = null;
+                    e.target.style.display = "none";
+                    e.target.nextSibling.style.display = "flex";
+                  }}
+                />
+                <div
+                  className="hidden h-11 w-11 items-center justify-center rounded-full text-lg font-bold text-white"
+                  style={{
+                    background: "linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045)"
+                  }}
+                >
+                  {selectedInstagramProfile.username[0].toUpperCase()}
+                </div>
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">@{selectedInstagramProfile.username}</p>
+                <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                  This profile picture will be shown with your visit.
+                </p>
+              </div>
+            </div>
+          ) : null}
 
           <div className="space-y-3">
             <button
