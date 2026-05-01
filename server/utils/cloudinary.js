@@ -16,9 +16,17 @@ if (hasCloudinaryConfig) {
   });
 }
 
-// Local uploads dir — lives inside the server folder so it survives restarts
-const LOCAL_UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
-fs.mkdirSync(LOCAL_UPLOADS_DIR, { recursive: true });
+// On Vercel only /tmp is writable; fallback there to avoid boot-time crashes.
+const LOCAL_UPLOADS_DIR = process.env.VERCEL
+  ? path.join('/tmp', 'uploads')
+  : path.join(__dirname, '..', 'uploads');
+try {
+  fs.mkdirSync(LOCAL_UPLOADS_DIR, { recursive: true });
+} catch (err) {
+  if (err?.code !== 'EEXIST') {
+    console.warn(`Could not create uploads directory at ${LOCAL_UPLOADS_DIR}: ${err.message}`);
+  }
+}
 
 const saveToLocalDisk = (file) => {
   const ext = (file.originalname || '').split('.').pop() || 'bin';
