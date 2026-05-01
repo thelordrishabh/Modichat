@@ -3,7 +3,7 @@ const auth = require('../middleware/auth');
 
 const INSTAGRAM_BASE_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  Accept: 'application/json'
+  Accept: '*/*'
 };
 
 const sanitizeInstagramHandle = (value = '') =>
@@ -13,9 +13,42 @@ const sanitizeInstagramHandle = (value = '') =>
     .toLowerCase()
     .replace(/[^a-z0-9._]/g, '');
 
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const decodeJsonEscaped = (value = '') => {
+  try {
+    return JSON.parse(`"${value}"`);
+  } catch {
+    return value;
+  }
+};
+
+const parseInstagramProfileFromHtml = (html, requestedUsername) => {
+  const normalized = sanitizeInstagramHandle(requestedUsername);
+  const usernamePattern = new RegExp(`\"username\":\"${escapeRegex(normalized)}\"`, 'i');
+  if (!usernamePattern.test(html)) return null;
+
+  const username = html.match(/"username":"([^"]+)"/)?.[1] || normalized;
+  const fullNameRaw = html.match(/"full_name":"([^"]*)"/)?.[1] || username;
+  const profilePicRaw =
+    html.match(/"profile_pic_url_hd":"([^"]+)"/)?.[1] ||
+    html.match(/"profile_pic_url":"([^"]+)"/)?.[1] ||
+    '';
+  const isVerified = html.match(/"is_verified":(true|false)/)?.[1] === 'true';
+  const id = html.match(/"id":"(\d+)"/)?.[1] || null;
+
+  return {
+    username,
+    fullName: decodeJsonEscaped(fullNameRaw),
+    profilePicUrl: decodeJsonEscaped(profilePicRaw).replace(/\\u0026/g, '&'),
+    isVerified,
+    id
+  };
+};
+
 const fetchInstagramProfile = async (username) => {
   const response = await fetch(
-    `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`,
+    `https://www.instagram.com/${encodeURIComponent(username)}/`,
     {
       method: 'GET',
       headers: INSTAGRAM_BASE_HEADERS
@@ -23,17 +56,8 @@ const fetchInstagramProfile = async (username) => {
   );
 
   if (!response.ok) return null;
-  const payload = await response.json();
-  const user = payload?.data?.user;
-  if (!user?.username) return null;
-
-  return {
-    username: user.username,
-    fullName: user.full_name || user.username,
-    profilePicUrl: user.profile_pic_url_hd || user.profile_pic_url || '',
-    isVerified: Boolean(user.is_verified),
-    id: user.id || null
-  };
+  const html = await response.text();
+  return parseInstagramProfileFromHtml(html, username);
 };
 
 router.get('/instagram/search', async (req, res) => {
@@ -50,15 +74,20 @@ router.get('/instagram/search', async (req, res) => {
       }
     );
 
-    if (!searchResponse.ok) {
-      return res.json([]);
+    let candidates = [];
+    if (searchResponse.ok) {
+      const raw = await searchResponse.text();
+      try {
+        const searchPayload = JSON.parse(raw);
+        candidates = (searchPayload?.users || [])
+          .map((entry) => sanitizeInstagramHandle(entry?.user?.username || ''))
+          .filter(Boolean)
+          .slice(0, 8);
+      } catch {
+        candidates = [];
+      }
     }
-
-    const searchPayload = await searchResponse.json();
-    const candidates = (searchPayload?.users || [])
-      .map((entry) => sanitizeInstagramHandle(entry?.user?.username || ''))
-      .filter(Boolean)
-      .slice(0, 8);
+    if (!candidates.includes(query)) candidates.unshift(query);
 
     // Verify each candidate using profile metadata to prevent invalid handles.
     const verifiedProfiles = await Promise.all(candidates.map((username) => fetchInstagramProfile(username)));
