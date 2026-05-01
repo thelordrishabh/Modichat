@@ -66,8 +66,13 @@ export default function LetterboxModal({ open, targetUser, initialGuestData, onS
         guestName: cleanName,
         guestInstagram: resolved.username
       });
-    } catch {
-      setInstagramError("This Instagram username does not exist. Pick a valid suggestion or enter a real handle.");
+    } catch (err) {
+      const errorCode = err?.response?.data?.code;
+      if (errorCode === "IG_CONFIG_MISSING") {
+        setInstagramError("Instagram validation is temporarily unavailable. You can still continue without Instagram.");
+      } else {
+        setInstagramError("This Instagram username does not exist. Pick a valid suggestion or enter a real handle.");
+      }
     } finally {
       setIsResolving(false);
     }
@@ -88,9 +93,12 @@ export default function LetterboxModal({ open, targetUser, initialGuestData, onS
         if (!cancelled) {
           setSuggestions(data || []);
         }
-      } catch {
+      } catch (err) {
         if (!cancelled) {
           setSuggestions([]);
+          if (err?.response?.data?.code === "IG_CONFIG_MISSING") {
+            setInstagramError("Instagram suggestions are unavailable right now. You can continue without Instagram.");
+          }
         }
       } finally {
         if (!cancelled) {

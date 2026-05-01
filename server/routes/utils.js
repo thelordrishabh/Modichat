@@ -5,6 +5,10 @@ const INSTAGRAM_BASE_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   Accept: '*/*'
 };
+const INSTAGRAM_GRAPH_ACCESS_TOKEN = process.env.INSTAGRAM_GRAPH_ACCESS_TOKEN?.trim();
+const INSTAGRAM_BUSINESS_ACCOUNT_ID = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID?.trim();
+const hasInstagramGraphConfig = Boolean(INSTAGRAM_GRAPH_ACCESS_TOKEN && INSTAGRAM_BUSINESS_ACCOUNT_ID);
+const canUseHtmlFallback = !hasInstagramGraphConfig && process.env.NODE_ENV !== 'production';
 
 const sanitizeInstagramHandle = (value = '') =>
   value
@@ -14,6 +18,11 @@ const sanitizeInstagramHandle = (value = '') =>
     .replace(/[^a-z0-9._]/g, '');
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const makeConfigError = () => {
+  const err = new Error('Instagram lookup is not configured on the server');
+  err.code = 'IG_CONFIG_MISSING';
+  return err;
+};
 
 const decodeJsonEscaped = (value = '') => {
   try {
@@ -46,7 +55,41 @@ const parseInstagramProfileFromHtml = (html, requestedUsername) => {
   };
 };
 
+const toInstagramProfile = (raw = {}) => ({
+  username: raw.username || '',
+  fullName: raw.name || raw.fullName || raw.username || '',
+  profilePicUrl: raw.profile_picture_url || raw.profilePicUrl || '',
+  isVerified: Boolean(raw.is_verified ?? raw.isVerified),
+  id: raw.id || null
+});
+
+const fetchInstagramProfileViaGraph = async (username) => {
+  if (!hasInstagramGraphConfig) throw makeConfigError();
+
+  const fields = `business_discovery.username(${username}){id,username,name,profile_picture_url,is_verified}`;
+  const graphUrl = `https://graph.facebook.com/v20.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}?fields=${encodeURIComponent(fields)}&access_token=${encodeURIComponent(INSTAGRAM_GRAPH_ACCESS_TOKEN)}`;
+  const response = await fetch(graphUrl, { method: 'GET' });
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok || payload?.error) {
+    const err = new Error(payload?.error?.message || 'Instagram Graph API request failed');
+    err.code = payload?.error?.code || response.status;
+    throw err;
+  }
+
+  const discovered = payload?.business_discovery;
+  if (!discovered?.username) return null;
+  return toInstagramProfile(discovered);
+};
+
 const fetchInstagramProfile = async (username) => {
+  if (hasInstagramGraphConfig) {
+    return fetchInstagramProfileViaGraph(username);
+  }
+  if (!canUseHtmlFallback) {
+    throw makeConfigError();
+  }
+
   const response = await fetch(
     `https://www.instagram.com/${encodeURIComponent(username)}/`,
     {
@@ -57,7 +100,9 @@ const fetchInstagramProfile = async (username) => {
 
   if (!response.ok) return null;
   const html = await response.text();
-  return parseInstagramProfileFromHtml(html, username);
+  const parsed = parseInstagramProfileFromHtml(html, username);
+  if (!parsed?.username) return null;
+  return toInstagramProfile(parsed);
 };
 
 router.get('/instagram/search', async (req, res) => {
@@ -90,15 +135,26 @@ router.get('/instagram/search', async (req, res) => {
     if (!candidates.includes(query)) candidates.unshift(query);
 
     // Verify each candidate using profile metadata to prevent invalid handles.
-    const verifiedProfiles = await Promise.all(candidates.map((username) => fetchInstagramProfile(username)));
+    const verifiedProfiles = await Promise.all(
+      candidates.map(async (username) => {
+        try {
+          return await fetchInstagramProfile(username);
+        } catch {
+          return null;
+        }
+      })
+    );
     const unique = new Map();
-    verifiedProfiles.filter(Boolean).forEach((profile) => {
+    verifiedProfiles.filter((profile) => profile?.username).forEach((profile) => {
       const key = profile.username.toLowerCase();
       if (!unique.has(key)) unique.set(key, profile);
     });
 
     res.json(Array.from(unique.values()));
   } catch (err) {
+    if (err.code === 'IG_CONFIG_MISSING') {
+      return res.status(503).json({ message: err.message, code: err.code });
+    }
     res.status(500).json({ message: err.message });
   }
 });
@@ -117,6 +173,9 @@ router.get('/instagram/profile', async (req, res) => {
 
     res.json(profile);
   } catch (err) {
+    if (err.code === 'IG_CONFIG_MISSING') {
+      return res.status(503).json({ message: err.message, code: err.code });
+    }
     res.status(500).json({ message: err.message });
   }
 });
