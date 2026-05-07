@@ -5,7 +5,8 @@ const getBaseUrl = (req) => {
   const host = req.headers['x-forwarded-host'] || req.get('host');
   if (!host) return '';
 
-  const protocol = req.headers['x-forwarded-proto'] || (host.includes('localhost') ? 'http' : 'https');
+  const isLocalHost = /^(localhost|127\.0\.0\.1|\[?::1\]?)(:\d+)?$/i.test(host);
+  const protocol = req.headers['x-forwarded-proto'] || (isLocalHost ? 'http' : 'https');
   return `${protocol}://${host}`;
 };
 

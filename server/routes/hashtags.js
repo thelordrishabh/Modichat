@@ -1,8 +1,8 @@
 const router = require('express').Router();
-const auth = require('../middleware/auth');
 const Post = require('../models/Post');
+const { normalizePost } = require('../utils/assets');
 
-router.get('/trending', auth, async (req, res) => {
+router.get('/trending', async (req, res) => {
   try {
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const tags = await Post.aggregate([
@@ -19,13 +19,13 @@ router.get('/trending', auth, async (req, res) => {
   }
 });
 
-router.get('/:tag', auth, async (req, res) => {
+router.get('/:tag', async (req, res) => {
   try {
     const normalizedTag = req.params.tag.toLowerCase();
     const posts = await Post.find({ hashtags: normalizedTag })
       .sort({ createdAt: -1 })
       .populate('userId', 'name username avatar profilePicture isVerified');
-    res.json(posts);
+    res.json(posts.map((post) => normalizePost(req, post)));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

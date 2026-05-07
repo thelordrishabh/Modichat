@@ -1,9 +1,10 @@
 export default function HighlightRow({ highlights = [], onSelect }) {
-  if (!highlights.length) return null;
+  const safeHighlights = Array.isArray(highlights) ? highlights : [];
+  if (!safeHighlights.length) return null;
 
   return (
     <div className="mb-6 flex items-center gap-4 overflow-x-auto pb-2">
-      {highlights.map((highlight) => (
+      {safeHighlights.map((highlight) => (
         <button
           key={highlight._id}
           type="button"

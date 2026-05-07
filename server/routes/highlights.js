@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
+const optionalAuth = require('../middleware/optionalAuth');
 const Highlight = require('../models/Highlight');
 const Story = require('../models/Story');
 
@@ -17,8 +18,12 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-router.get('/', auth, async (req, res) => {
+router.get('/', optionalAuth, async (req, res) => {
   try {
+    if (!req.query.userId && !req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
     const filter = req.query.userId ? { author: req.query.userId } : { author: req.user.id };
     const highlights = await Highlight.find(filter)
       .sort({ createdAt: -1 })

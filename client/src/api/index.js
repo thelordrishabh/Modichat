@@ -1,10 +1,13 @@
 import axios from "axios";
 
-const DEFAULT_DEV_API_URL = "http://127.0.0.1:8080/api";
-const DEFAULT_PROD_API_URL = "/api";
-export const API_BASE_URL = import.meta.env.PROD
-  ? DEFAULT_PROD_API_URL
-  : (import.meta.env.VITE_API_URL || DEFAULT_DEV_API_URL);
+const DEFAULT_API_URL = import.meta.env.PROD
+  ? "https://modichat-api.onrender.com"
+  : "http://127.0.0.1:8080";
+const rawApiUrl = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
+const normalizedApiUrl = rawApiUrl.replace(/\/+$/, "");
+export const API_BASE_URL = normalizedApiUrl.endsWith("/api")
+  ? normalizedApiUrl
+  : `${normalizedApiUrl}/api`;
 export const BASE_URL = API_BASE_URL.replace(/\/api\/?$/, "");
 export const API = axios.create({ 
   baseURL: API_BASE_URL

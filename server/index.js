@@ -157,6 +157,13 @@ if (isVercel) {
   app.use('/uploads', express.static(bundledUploadsDir));
 }
 app.use('/uploads', express.static(runtimeUploadsDir));
+app.use('/uploads', (req, res) => {
+  res
+    .type('svg')
+    .send(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><rect width="800" height="800" fill="#f3f4f6"/><text x="400" y="390" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#6b7280">MODICHAT</text><text x="400" y="450" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#9ca3af">Media unavailable</text></svg>'
+    );
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);

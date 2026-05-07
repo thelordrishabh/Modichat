@@ -36,10 +36,6 @@ export default function Layout({ children }) {
     { name: "Search", path: "/search", icon: "🔍" }
   ];
 
-  const guestDesktopActionItems = [
-    { name: "Log In", path: "/login", icon: "🔑" },
-    { name: "Sign Up", path: "/register", icon: "📝", isPrimary: true }
-  ];
 
   const guestMobileNavItems = [
     { name: "Home", path: "/", icon: "🏠" },
@@ -195,12 +191,21 @@ export default function Layout({ children }) {
               >
                 {dark ? "☀️" : "🌙"}
               </button>
-              <button
-                onClick={logout}
-                className="flex min-h-11 min-w-11 items-center justify-center rounded-2xl bg-red-50 text-xl text-red-600 dark:bg-red-900/20 dark:text-red-400"
-              >
-                🚪
-              </button>
+              {user ? (
+                <button
+                  onClick={logout}
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-2xl bg-red-50 text-xl text-red-600 dark:bg-red-900/20 dark:text-red-400"
+                >
+                  🚪
+                </button>
+              ) : (
+                <Link
+                  to="/login"
+                  className="flex min-h-11 min-w-11 items-center justify-center rounded-2xl bg-gray-100 text-xl text-gray-800 dark:bg-gray-700 dark:text-white"
+                >
+                  🔑
+                </Link>
+              )}
             </div>
           </div>
         </header>

@@ -123,7 +123,7 @@ export default function Profile() {
     if (currentUser) {
       trackProfileView(id).catch(() => {});
     }
-    getHighlights(id).then(({ data }) => setHighlights(data)).catch(() => setHighlights(null));
+    getHighlights(id).then(({ data }) => setHighlights(data)).catch(() => setHighlights([]));
   }, [id, currentUser]);
 
   useEffect(() => {
