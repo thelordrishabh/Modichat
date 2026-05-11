@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import toast from "react-hot-toast";
+import { motion } from "framer-motion";
 import Layout from "../components/Layout";
 import Avatar from "../components/Avatar";
 import { getMessagesByUser, sendMessageToUser } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
+
+const MotionDiv = motion.div;
 
 export default function Chat() {
   const { userId } = useParams();
@@ -112,23 +115,38 @@ export default function Chat() {
 
   return (
     <Layout>
-      <div className="mx-auto flex h-[78vh] w-full max-w-4xl flex-col rounded-3xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-        <div className="flex items-center gap-3 border-b border-gray-200 p-4 dark:border-gray-700">
+      <div className="chat-shell glass-panel mx-auto flex h-[78vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-white/15">
+        <div className="flex items-center gap-3 border-b border-white/10 p-4">
           <div className="relative">
             <Avatar user={target} />
             <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-gray-800 ${online ? "bg-green-500" : "bg-gray-400"}`} />
           </div>
           <div>
             <p className="font-semibold text-gray-900 dark:text-white">{target?.name || "Chat"}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{typing ? `${target?.name || "User"} is typing...` : online ? "Online" : "Offline"}</p>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              {typing ? (
+                <span className="typing-wave" aria-label={`${target?.name || "User"} is typing`}>
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              ) : online ? "Online" : "Offline"}
+            </div>
           </div>
         </div>
-        <div className="flex-1 space-y-2 overflow-y-auto p-4">
+        <div className="chat-noise flex-1 space-y-2 overflow-y-auto p-4">
           {messages.map((message) => {
             const mine = String(message.senderId?._id || message.senderId) === String(user?._id);
             return (
-              <div key={message._id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100"}`}>
+              <MotionDiv
+                key={message._id}
+                className={`flex ${mine ? "justify-end" : "justify-start"}`}
+                initial={{ opacity: 0, y: 18, scale: 0.86 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ type: "spring", stiffness: 430, damping: 24 }}
+              >
+                <div className={`message-bubble max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-blue-600 text-white" : "bg-white/15 text-gray-800 dark:text-gray-100"}`}>
                   {message.messageType === "voice" && message.audioUrl ? (
                     <audio controls src={message.audioUrl} className="h-8 w-full" />
                   ) : (
@@ -138,7 +156,7 @@ export default function Chat() {
                     {mine ? (message.seen ? "✓✓ seen" : message.delivered ? "✓✓ delivered" : "✓ sent") : ""}
                   </div>
                 </div>
-              </div>
+              </MotionDiv>
             );
           })}
           <div ref={bottomRef} />

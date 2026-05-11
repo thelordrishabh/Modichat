@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import confetti from "canvas-confetti";
+import gsap from "gsap";
 import { getAssetUrl, likePost, commentPost, savePost, updatePost, deletePost, reactPost, votePoll, repostPost, deleteComment } from "../api";
 import Avatar from "./Avatar";
 import { useAuth } from "../context/AuthContext";
@@ -8,10 +10,51 @@ import ReactionPicker from "./ReactionPicker";
 import PollCard from "./PollCard";
 import ReportModal from "./ReportModal";
 import GuestActionModal from "./GuestActionModal";
+import useMobile from "../hooks/useMobile";
+import { useGyroscope } from "../hooks/useGyroscope";
+
+let gyroPromptClaimed = false;
+
+const VIDEO_EXTENSION_PATTERN = /\.(mp4|mov|webm|m4v)(?:$|[?#])/i;
+const IMAGE_EXTENSION_PATTERN = /\.(jpe?g|png|webp|gif|avif)(?:$|[?#])/i;
+
+const inferMediaType = (value, fallbackType) => {
+  if (fallbackType === "video" || VIDEO_EXTENSION_PATTERN.test(value || "")) return "video";
+  return "image";
+};
+
+const getPostMediaCandidates = (post) => {
+  const fields = [
+    ["imageUrl", post.imageUrl],
+    ["image", post.image],
+    ["mediaUrl", post.mediaUrl],
+    ["media", post.media]
+  ];
+  const seen = new Set();
+
+  return fields.reduce((candidates, [field, value]) => {
+    if (!value || seen.has(value)) return candidates;
+    seen.add(value);
+    candidates.push({
+      field,
+      originalUrl: value,
+      src: getAssetUrl(value),
+      type: inferMediaType(value, post.mediaType)
+    });
+    return candidates;
+  }, []);
+};
+
+const isUnavailableUploadPlaceholder = (url, contentType) => {
+  if (!url || !contentType) return false;
+  return /\/uploads\//i.test(url) && /image\/svg\+xml/i.test(contentType) && IMAGE_EXTENSION_PATTERN.test(url);
+};
 
 export default function PostCard({ post, onDelete, onUpdate }) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useMobile();
+  const { tilt, isSupported, hasPermission, needsPermission, requestPermission } = useGyroscope();
   const [likes, setLikes] = useState(post.likes.length);
   const [isLiked, setIsLiked] = useState(user ? post.likes.some((likeId) => String(likeId) === String(user._id)) : false);
   const [isSaved, setIsSaved] = useState(Boolean(post.saved));
@@ -28,10 +71,26 @@ export default function PostCard({ post, onDelete, onUpdate }) {
   const [hasVoted, setHasVoted] = useState(false);
   const [showGuestAction, setShowGuestAction] = useState(false);
   const [guestActionMessage, setGuestActionMessage] = useState("like posts");
+  const [mediaIndex, setMediaIndex] = useState(0);
+  const [mediaUnavailable, setMediaUnavailable] = useState(false);
+  const [showGyroPrompt, setShowGyroPrompt] = useState(false);
   const lastTap = useRef(0);
+  const cardRef = useRef(null);
+  const likeButtonRef = useRef(null);
+  const mediaCandidates = useMemo(() => getPostMediaCandidates(post), [post]);
+  const activeMedia = mediaCandidates[mediaIndex];
 
   const isGuest = !user;
   const isOwner = user ? String(post.userId._id) === String(user._id) : false;
+
+  const handleCurrentMediaFailure = useCallback(() => {
+    setMediaIndex((currentIndex) => {
+      const nextIndex = currentIndex + 1;
+      if (nextIndex < mediaCandidates.length) return nextIndex;
+      setMediaUnavailable(true);
+      return currentIndex;
+    });
+  }, [mediaCandidates.length]);
 
   const openGuestAction = (action) => {
     setGuestActionMessage(action);
@@ -39,6 +98,9 @@ export default function PostCard({ post, onDelete, onUpdate }) {
   };
 
   useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log("Post image URL:", post.imageUrl || post.image || post.media);
+    }
     setLikes(post.likes.length);
     setIsLiked(user ? post.likes.some((likeId) => String(likeId) === String(user._id)) : false);
     setComments(post.comments || []);
@@ -52,6 +114,134 @@ export default function PostCard({ post, onDelete, onUpdate }) {
     }
   }, [post, user?._id]);
 
+  useEffect(() => {
+    setMediaIndex(0);
+    setMediaUnavailable(mediaCandidates.length === 0);
+  }, [post._id, mediaCandidates.length]);
+
+  useEffect(() => {
+    if (!isMobile || !isSupported || hasPermission || !needsPermission || gyroPromptClaimed) return;
+    if (typeof window === "undefined") return;
+    if (window.localStorage.getItem("gyro-skipped") || window.localStorage.getItem("gyro-granted")) return;
+
+    gyroPromptClaimed = true;
+    setShowGyroPrompt(true);
+  }, [hasPermission, isMobile, isSupported, needsPermission]);
+
+  useEffect(() => {
+    if (!activeMedia?.src || mediaUnavailable) return undefined;
+    if (!/\/uploads\//i.test(activeMedia.src)) return undefined;
+
+    const controller = new AbortController();
+
+    const validateMedia = async () => {
+      try {
+        const response = await fetch(activeMedia.src, {
+          method: "HEAD",
+          signal: controller.signal,
+          cache: "no-store"
+        });
+        const contentType = response.headers.get("content-type") || "";
+
+        if (!response.ok || isUnavailableUploadPlaceholder(activeMedia.src, contentType)) {
+          handleCurrentMediaFailure();
+        }
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          // If HEAD is blocked by a host, the media element still gets one final attempt.
+        }
+      }
+    };
+
+    validateMedia();
+    return () => controller.abort();
+  }, [activeMedia?.src, handleCurrentMediaFailure, mediaUnavailable]);
+
+  useEffect(() => {
+    const element = cardRef.current;
+    if (!element) return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        gsap.fromTo(
+          element,
+          { autoAlpha: 0, y: 90, rotateX: -28, rotateY: 9, scale: 0.92, transformPerspective: 1200 },
+          { autoAlpha: 1, y: 0, rotateX: 0, rotateY: 0, scale: 1, duration: 1, ease: "expo.out" }
+        );
+        observer.disconnect();
+      },
+      { threshold: 0.18 }
+    );
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const burstLikeParticles = () => {
+    const rect = likeButtonRef.current?.getBoundingClientRect();
+    const origin = rect
+      ? {
+          x: (rect.left + rect.width / 2) / window.innerWidth,
+          y: (rect.top + rect.height / 2) / window.innerHeight
+        }
+      : { x: 0.5, y: 0.55 };
+
+    confetti({
+      particleCount: 58,
+      spread: 72,
+      scalar: 0.95,
+      ticks: 90,
+      origin,
+      colors: ["#ff4fd8", "#8b5cf6", "#38bdf8", "#ffffff"],
+      shapes: ["star", "circle"]
+    });
+  };
+
+  const handleTiltMove = (event) => {
+    if (isMobile) return;
+    const element = cardRef.current;
+    if (!element) return;
+    const rect = element.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / rect.width - 0.5;
+    const y = (event.clientY - rect.top) / rect.height - 0.5;
+    element.style.transform = `perspective(1200px) rotateX(${-y * 6}deg) rotateY(${x * 7}deg) translate3d(0,-8px,0)`;
+  };
+
+  const resetTilt = () => {
+    if (isMobile) return;
+    if (cardRef.current) {
+      cardRef.current.style.transform = "perspective(1200px) rotateX(0deg) rotateY(0deg) translate3d(0,0,0)";
+    }
+  };
+
+  const getTransformStyle = () => {
+    if (isMobile && hasPermission) {
+      return {
+        transform: `perspective(1000px) rotateX(${-tilt.y * 0.3}deg) rotateY(${tilt.x * 0.3}deg)`,
+        transition: "transform 0.1s ease-out",
+        willChange: "transform"
+      };
+    }
+
+    return undefined;
+  };
+
+  const enableMotionEffects = async () => {
+    const granted = await requestPermission();
+    if (granted && typeof window !== "undefined") {
+      window.localStorage.setItem("gyro-granted", "true");
+    }
+    setShowGyroPrompt(false);
+  };
+
+  const skipMotionEffects = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("gyro-skipped", "true");
+    }
+    setShowGyroPrompt(false);
+  };
+
   const handleLike = async () => {
     if (isGuest) {
       openGuestAction("like posts");
@@ -64,6 +254,7 @@ export default function PostCard({ post, onDelete, onUpdate }) {
     try {
       setLikes(isLiked ? likes - 1 : likes + 1);
       setIsLiked(!isLiked);
+      if (!isLiked) burstLikeParticles();
       const { data } = await likePost(post._id);
       setLikes(data.likesCount);
       setIsLiked(data.liked);
@@ -209,7 +400,13 @@ export default function PostCard({ post, onDelete, onUpdate }) {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 md:rounded-2xl shadow-sm border-y md:border border-gray-100 dark:border-gray-700 overflow-hidden mb-6">
+    <div
+      ref={cardRef}
+      onPointerMove={handleTiltMove}
+      onPointerLeave={resetTilt}
+      className="post-card-lux scroll-reveal mb-6 overflow-hidden border-y border-white/15 bg-white/10 shadow-sm md:rounded-2xl md:border"
+      style={getTransformStyle()}
+    >
       <div className="p-4 flex items-center justify-between gap-4">
         <Link to={`/profile/${post.userId._id}`} className="flex items-center gap-3">
           <Avatar user={post.userId} />
@@ -256,43 +453,38 @@ export default function PostCard({ post, onDelete, onUpdate }) {
       </div>
 
       <div
-        className="relative w-full overflow-hidden bg-gray-100 dark:bg-gray-900"
+        className="post-media-container relative w-full overflow-hidden bg-gray-950/70"
         onClick={handleImageTap}
-        onTouchEnd={(e) => { e.preventDefault(); handleImageTap(); }}
+        onTouchEnd={(e) => {
+          if (e.target.closest("video")) return;
+          e.preventDefault();
+          handleImageTap();
+        }}
       >
-        {post.mediaType === "video" || (post.mediaUrl && !post.imageUrl) ? (
+        {!mediaUnavailable && activeMedia?.type === "video" ? (
           <video
-            src={getAssetUrl(post.mediaUrl || post.imageUrl)}
-            className="w-full aspect-square object-contain"
+            src={activeMedia.src}
+            className="w-full max-h-[600px] object-cover"
             muted
             autoPlay
             loop
             controls
             playsInline
-            onError={(e) => {
-              e.target.style.display = "none";
-              e.target.parentNode.querySelector(".media-fallback").style.display = "flex";
-            }}
+            onError={handleCurrentMediaFailure}
+          />
+        ) : !mediaUnavailable && activeMedia ? (
+          <img
+            src={activeMedia.src}
+            alt="Post"
+            className="ken-burns-media w-full max-h-[600px] object-cover"
+            style={{ filter: post.filter && post.filter !== "normal" ? undefined : undefined }}
+            onError={handleCurrentMediaFailure}
           />
         ) : (
-          <img
-            src={getAssetUrl(post.mediaUrl || post.imageUrl)}
-            alt="Post"
-            className="w-full aspect-square object-contain"
-            style={{ filter: post.filter && post.filter !== "normal" ? undefined : undefined }}
-            onError={(e) => {
-              e.target.style.display = "none";
-              e.target.parentNode.querySelector(".media-fallback").style.display = "flex";
-            }}
-          />
+          <div className="flex h-64 w-full items-center justify-center bg-gray-100 text-gray-400 dark:bg-gray-800">
+            Image unavailable
+          </div>
         )}
-        <div
-          className="media-fallback w-full aspect-square items-center justify-center flex-col gap-3 bg-gray-100 dark:bg-gray-800"
-          style={{ display: "none" }}
-        >
-          <span className="text-5xl">🖼️</span>
-          <p className="text-sm text-gray-400 dark:text-gray-500">Image no longer available</p>
-        </div>
         {showHeart && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <span className="text-6xl text-red-500 opacity-0 animate-heart-pop">❤️</span>
@@ -303,9 +495,10 @@ export default function PostCard({ post, onDelete, onUpdate }) {
       <div className="p-4">
         <div className="flex items-center gap-3 mb-3">
           <button
+            ref={likeButtonRef}
             onMouseEnter={() => setShowReactionPicker(true)}
             onClick={handleLike}
-            className={`min-h-11 min-w-11 text-2xl transition-transform hover:scale-110 ${isLiked ? "text-red-500" : "text-gray-900 dark:text-white"}`}
+            className={`liquid-button relative min-h-11 min-w-11 rounded-full text-2xl transition-transform hover:scale-110 ${isLiked ? "text-red-500" : "text-gray-900 dark:text-white"}`}
             aria-label="Like post"
           >
             {isLiked ? "❤️" : "🤍"}
@@ -490,6 +683,27 @@ export default function PostCard({ post, onDelete, onUpdate }) {
         action={guestActionMessage}
         onClose={() => setShowGuestAction(false)}
       />
+      {showGyroPrompt ? (
+        <div className="fixed inset-x-4 bottom-24 z-50 mx-auto flex max-w-sm items-center justify-between gap-3 rounded-3xl border border-white/20 bg-gray-950/90 p-3 text-sm text-white shadow-2xl backdrop-blur md:hidden">
+          <span className="font-medium">Enable motion effects? 📱</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={enableMotionEffects}
+              className="rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-gray-950"
+            >
+              Enable
+            </button>
+            <button
+              type="button"
+              onClick={skipMotionEffects}
+              className="rounded-2xl border border-white/20 px-3 py-2 text-xs font-semibold text-white/80"
+            >
+              Skip
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

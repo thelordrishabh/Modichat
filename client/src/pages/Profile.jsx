@@ -26,6 +26,29 @@ import HighlightRow from "../components/HighlightRow";
 import LinkPreview from "../components/LinkPreview";
 import ReportModal from "../components/ReportModal";
 
+function CountUp({ value }) {
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    const target = Number(value) || 0;
+    let frameId;
+    const startedAt = performance.now();
+    const duration = 900;
+
+    const tick = (now) => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplay(Math.round(target * eased));
+      if (progress < 1) frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameId);
+  }, [value]);
+
+  return <strong className="ticker-number font-semibold">{display}</strong>;
+}
+
 const formatRelativeTime = (value) => {
   const diff = Date.now() - new Date(value).getTime();
   const minutes = Math.round(diff / 60000);
@@ -291,8 +314,11 @@ export default function Profile() {
   return (
     <Layout>
       <PageFade className="mx-auto w-full max-w-6xl px-4 py-8 pb-24 sm:px-6">
-        <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-12">
-          <Avatar user={profileUser} size="h-32 w-32 md:h-40 md:w-40" textSize="text-5xl" />
+        <div className="profile-cover-lux parallax-depth mb-[-4rem] h-56 rounded-3xl" />
+        <div className="glass-panel scroll-reveal relative flex flex-col items-center gap-8 rounded-3xl border border-white/15 p-6 pt-20 md:flex-row md:items-start md:p-8 md:pt-24">
+          <div className="avatar-entrance -mt-28 md:-mt-32">
+            <Avatar user={profileUser} size="h-32 w-32 md:h-40 md:w-40" textSize="text-5xl" className="ring-4 ring-white/20" />
+          </div>
 
           <div className="flex-1 text-center md:text-left">
             <div className="flex flex-col md:flex-row items-center gap-4 mb-4">
@@ -303,7 +329,7 @@ export default function Profile() {
               {isOwnProfile ? (
                 <button
                   onClick={openEditModal}
-                  className="px-6 py-2 rounded-xl font-semibold bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 transition"
+                  className="liquid-button px-6 py-2 rounded-xl font-semibold bg-white text-gray-950 transition"
                 >
                   Edit Profile
                 </button>
@@ -311,17 +337,17 @@ export default function Profile() {
                 <div className="flex flex-wrap gap-2 justify-center md:justify-start">
                   <button
                     onClick={handleFollow}
-                    className={`px-6 py-2 rounded-xl font-semibold transition ${
+                    className={`liquid-button follow-morph px-6 py-2 rounded-xl font-semibold transition ${
                       isFollowing
-                        ? "bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-                        : "bg-blue-600 text-white hover:bg-blue-700"
+                        ? "is-following bg-white/15 text-white"
+                        : "bg-blue-600 text-white"
                     }`}
                   >
                     {isFollowing ? "Following" : "Follow"}
                   </button>
                   <button
                     onClick={handleMessage}
-                    className="px-6 py-2 rounded-xl font-semibold bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 transition"
+                    className="liquid-button px-6 py-2 rounded-xl font-semibold bg-white/15 text-white transition"
                   >
                     Message
                   </button>
@@ -337,13 +363,13 @@ export default function Profile() {
                         toast.success("User blocked");
                       }
                     }}
-                    className="px-6 py-2 rounded-xl font-semibold bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 transition"
+                    className="liquid-button px-6 py-2 rounded-xl font-semibold bg-white/15 text-white transition"
                   >
                     {isBlocked ? "Unblock" : "Block"}
                   </button>
                   <button
                     onClick={() => setShowReportModal(true)}
-                    className="px-6 py-2 rounded-xl font-semibold bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300 transition"
+                    className="liquid-button px-6 py-2 rounded-xl font-semibold bg-red-500/20 text-red-100 transition"
                   >
                     Report
                   </button>
@@ -352,7 +378,7 @@ export default function Profile() {
             </div>
 
             <div className="flex flex-wrap justify-center md:justify-start gap-8 mb-4 text-gray-900 dark:text-white">
-              <span className="text-lg"><strong className="font-semibold">{posts.length}</strong> posts</span>
+              <span className="stat-chip text-lg"><CountUp value={posts.length} /> posts</span>
               {currentUser ? (
                 <>
                   <button
@@ -360,20 +386,20 @@ export default function Profile() {
                     onClick={() => openConnectionsModal("followers")}
                     className="text-lg transition hover:opacity-80"
                   >
-                    <strong className="font-semibold">{profileUser.followers?.length || 0}</strong> followers
+                    <CountUp value={profileUser.followers?.length || 0} /> followers
                   </button>
                   <button
                     type="button"
                     onClick={() => openConnectionsModal("following")}
                     className="text-lg transition hover:opacity-80"
                   >
-                    <strong className="font-semibold">{profileUser.following?.length || 0}</strong> following
+                    <CountUp value={profileUser.following?.length || 0} /> following
                   </button>
                 </>
               ) : (
                 <>
-                  <span className="text-lg"><strong className="font-semibold">{profileUser.followers?.length || 0}</strong> followers</span>
-                  <span className="text-lg"><strong className="font-semibold">{profileUser.following?.length || 0}</strong> following</span>
+                  <span className="stat-chip text-lg"><CountUp value={profileUser.followers?.length || 0} /> followers</span>
+                  <span className="stat-chip text-lg"><CountUp value={profileUser.following?.length || 0} /> following</span>
                 </>
               )}
             </div>

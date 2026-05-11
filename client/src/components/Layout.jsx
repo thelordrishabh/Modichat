@@ -78,15 +78,15 @@ export default function Layout({ children }) {
 
   const renderNavItem = (item, mobile = false) => {
     const sharedClassName = mobile
-      ? `flex min-h-11 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 transition ${
+      ? `magnetic-link nav-link-lux flex min-h-11 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 transition ${
           isPathActive(item.path)
-            ? "bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white"
-            : "text-gray-500 dark:text-gray-400"
+            ? "is-active bg-white/15 text-white"
+            : "text-white/65 hover:text-white"
         }`
-      : `flex min-h-11 items-center gap-4 rounded-2xl px-4 py-3 transition ${
+      : `magnetic-link nav-link-lux flex min-h-11 items-center gap-4 rounded-2xl px-4 py-3 transition ${
           isPathActive(item.path)
-            ? "bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white"
-            : "text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700/70"
+            ? "is-active bg-white/15 text-white"
+            : "text-white/70 hover:bg-white/10 hover:text-white"
         }`;
 
     const content = (
@@ -94,7 +94,7 @@ export default function Layout({ children }) {
         <div className="relative flex items-center justify-center">
           <span className={mobile ? "text-xl" : "text-2xl"}>{item.icon}</span>
           {item.badge > 0 ? (
-            <span className="absolute -right-2 -top-2 min-w-5 rounded-full bg-red-500 px-1.5 text-center text-[10px] font-bold text-white">
+            <span className="notification-wobble absolute -right-2 -top-2 min-w-5 rounded-full bg-pink-500 px-1.5 text-center text-[10px] font-bold text-white shadow-[0_0_18px_rgba(236,72,153,0.85)]">
               {item.badge > 9 ? "9+" : item.badge}
             </span>
           ) : null}
@@ -121,30 +121,31 @@ export default function Layout({ children }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 transition-colors duration-300 dark:bg-gray-900">
-      <aside className="fixed left-0 top-0 hidden h-screen w-72 flex-col border-r border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800 md:flex">
+    <div className="relative min-h-screen text-gray-100 transition-colors duration-300">
+      <div className="flex min-h-screen">
+        <aside className="glass-nav fixed left-0 top-0 z-40 hidden h-screen min-h-screen w-72 flex-col overflow-y-auto overflow-x-hidden p-5 md:flex">
         <div className="mb-8 px-2">
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">MODICHAT</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">@{user?.username || user?.name}</p>
+          <h1 className="brand-glow text-2xl font-bold tracking-tight text-white">MODICHAT</h1>
+          <p className="mt-1 text-sm text-white/55">@{user?.username || user?.name || "public"}</p>
         </div>
 
         <nav className="flex-1 space-y-2">
           {desktopNavItems.map((item) => renderNavItem(item))}
         </nav>
 
-        <div className="mt-auto space-y-2 border-t border-gray-100 pt-4 dark:border-gray-700">
+        <div className="mt-auto space-y-2 border-t border-white/10 pt-4">
           {user ? (
             <>
               <button
                 onClick={toggleDark}
-                className="flex min-h-11 w-full items-center gap-4 rounded-2xl px-4 py-3 text-gray-700 transition hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700/70"
+                className="magnetic-link nav-link-lux flex min-h-11 w-full items-center gap-4 rounded-2xl px-4 py-3 text-white/75 transition hover:bg-white/10 hover:text-white"
               >
                 <span className="text-2xl">{dark ? "☀️" : "🌙"}</span>
                 <span className="text-base font-medium">Theme</span>
               </button>
               <button
                 onClick={logout}
-                className="flex min-h-11 w-full items-center gap-4 rounded-2xl px-4 py-3 text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                className="magnetic-link nav-link-lux flex min-h-11 w-full items-center gap-4 rounded-2xl px-4 py-3 text-pink-200 transition hover:bg-pink-500/15 hover:text-white"
               >
                 <span className="text-2xl">🚪</span>
                 <span className="text-base font-medium">Logout</span>
@@ -154,21 +155,21 @@ export default function Layout({ children }) {
             <>
               <Link
                 to="/login"
-                className="flex min-h-11 w-full items-center gap-4 rounded-2xl border border-gray-200 px-4 py-3 text-center text-base font-medium text-gray-700 transition hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700/70"
+                className="magnetic-link nav-link-lux flex min-h-11 w-full items-center gap-4 rounded-2xl border border-white/15 px-4 py-3 text-center text-base font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
               >
                 <span className="text-2xl">🔑</span>
                 Log In
               </Link>
               <Link
                 to="/register"
-                className="flex min-h-11 w-full items-center gap-4 rounded-2xl bg-black px-4 py-3 text-center text-base font-medium text-white transition hover:bg-gray-800"
+                className="magnetic-link liquid-button flex min-h-11 w-full items-center gap-4 rounded-2xl bg-white px-4 py-3 text-center text-base font-medium text-gray-950 transition"
               >
                 <span className="text-2xl">📝</span>
                 Sign Up
               </Link>
               <button
                 onClick={toggleDark}
-                className="flex min-h-11 w-full items-center gap-4 rounded-2xl px-4 py-3 text-gray-700 transition hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700/70"
+                className="magnetic-link nav-link-lux flex min-h-11 w-full items-center gap-4 rounded-2xl px-4 py-3 text-white/75 transition hover:bg-white/10 hover:text-white"
               >
                 <span className="text-2xl">{dark ? "☀️" : "🌙"}</span>
                 <span className="text-base font-medium">Theme</span>
@@ -178,30 +179,30 @@ export default function Layout({ children }) {
         </div>
       </aside>
 
-      <div className="md:ml-72">
-        <header className="sticky top-0 z-20 border-b border-gray-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-gray-700 dark:bg-gray-800/95 md:hidden">
+      <div className="ml-0 min-h-screen flex-1 overflow-y-auto md:ml-72">
+        <header className="glass-nav sticky top-0 z-20 px-4 py-3 md:hidden">
           <div className="flex items-center justify-between gap-3">
-            <Link to="/" className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">
+            <Link to="/" className="brand-glow text-lg font-bold tracking-tight text-white">
               MODICHAT
             </Link>
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleDark}
-                className="flex min-h-11 min-w-11 items-center justify-center rounded-2xl bg-gray-100 text-xl text-gray-800 dark:bg-gray-700 dark:text-white"
+                className="liquid-button flex min-h-11 min-w-11 items-center justify-center rounded-2xl bg-white/15 text-xl text-white"
               >
                 {dark ? "☀️" : "🌙"}
               </button>
               {user ? (
                 <button
                   onClick={logout}
-                  className="flex min-h-11 min-w-11 items-center justify-center rounded-2xl bg-red-50 text-xl text-red-600 dark:bg-red-900/20 dark:text-red-400"
+                  className="liquid-button flex min-h-11 min-w-11 items-center justify-center rounded-2xl bg-pink-500/20 text-xl text-white"
                 >
                   🚪
                 </button>
               ) : (
                 <Link
                   to="/login"
-                  className="flex min-h-11 min-w-11 items-center justify-center rounded-2xl bg-gray-100 text-xl text-gray-800 dark:bg-gray-700 dark:text-white"
+                  className="liquid-button flex min-h-11 min-w-11 items-center justify-center rounded-2xl bg-white/15 text-xl text-white"
                 >
                   🔑
                 </Link>
@@ -214,8 +215,9 @@ export default function Layout({ children }) {
           <div className="mx-auto w-full max-w-5xl">{children}</div>
         </main>
       </div>
+      </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white px-2 py-2 dark:border-gray-700 dark:bg-gray-900 md:hidden">
+      <nav className="glass-nav fixed inset-x-0 bottom-0 z-30 px-2 py-2 md:hidden">
         <div className="flex items-center gap-2">
           {mobileNavItems.map((item) => renderNavItem(item, true))}
         </div>

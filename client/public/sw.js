@@ -1,5 +1,5 @@
-const CACHE_NAME = "modichat-shell-v2";
-const SHELL_ASSETS = ["/", "/manifest.json", "/favicon.svg"];
+const CACHE_NAME = "modichat-shell-v4";
+const SHELL_ASSETS = ["/manifest.json", "/favicon.svg"];
 
 // Pre-cache the app shell on install so offline fallback works
 self.addEventListener("install", (event) => {
@@ -27,6 +27,12 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener("fetch", (event) => {
   // Only handle GET requests
   if (event.request.method !== "GET") return;
@@ -34,11 +40,15 @@ self.addEventListener("fetch", (event) => {
   // Skip API calls — always go network-first for data
   if (event.request.url.includes("/api/")) return;
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match("/index.html"))
+    );
+    return;
+  }
 
-      return fetch(event.request)
+  event.respondWith(
+    fetch(event.request)
         .then((networkResponse) => {
           // Cache same-origin responses
           if (
@@ -50,12 +60,6 @@ self.addEventListener("fetch", (event) => {
           }
           return networkResponse;
         })
-        .catch(() => {
-          // Offline fallback: return the cached index shell for navigation requests
-          if (event.request.mode === "navigate") {
-            return caches.match("/");
-          }
-        });
-    })
+        .catch(() => caches.match(event.request))
   );
 });
