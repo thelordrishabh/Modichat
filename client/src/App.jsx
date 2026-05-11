@@ -41,9 +41,9 @@ function AnimatedRoutes() {
         <MotionDiv
           key={location.pathname}
           className="page-cinema-shell"
-          initial={{ opacity: 0, scale: 0.985, filter: "blur(18px)" }}
-          animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-          exit={{ opacity: 0, scale: 1.025, filter: "blur(22px)" }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
         >
           <Routes location={location}>
