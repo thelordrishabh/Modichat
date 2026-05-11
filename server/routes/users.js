@@ -455,6 +455,15 @@ router.put('/:id/view', optionalAuth, async (req, res) => {
     const profileUser = await User.findById(req.params.id);
     if (!profileUser) return res.status(404).json({ message: 'User not found' });
 
+    if (!profileUser.username) {
+      profileUser.username = await ensureUniqueUsername({
+        User,
+        desiredUsername: profileUser.name || profileUser.email || `user_${profileUser._id}`,
+        fallbackValue: profileUser.email || profileUser.name || `user_${profileUser._id}`,
+        excludeUserId: profileUser._id
+      });
+    }
+
     if (req.user) {
       profileUser.profileViews = (profileUser.profileViews || []).filter(
         (view) => String(view.viewer) !== req.user.id

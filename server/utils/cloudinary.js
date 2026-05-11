@@ -29,6 +29,13 @@ try {
 }
 
 const saveToLocalDisk = (file) => {
+  if (process.env.VERCEL) {
+    const ext = (file.originalname || '').split('.').pop() || 'bin';
+    const mimeType = file.mimetype || `image/${ext}`;
+    const base64Data = file.buffer.toString('base64');
+    return `data:${mimeType};base64,${base64Data}`;
+  }
+
   const ext = (file.originalname || '').split('.').pop() || 'bin';
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
   const filepath = path.join(LOCAL_UPLOADS_DIR, filename);
