@@ -43,6 +43,18 @@ export const searchUsers = (query) => API.get(`/users?q=${query}`);
 export const followUser = (id) => API.put(`/users/${id}/follow`);
 export const updateProfile = (data) => API.put("/users/profile", data);
 
+// Location
+export const updateMyLocation = (data) => API.put("/location/update", data);
+export const getNearbyUsers = ({ radius = 5000, latitude, longitude } = {}) => {
+  const params = new URLSearchParams({ radius: String(radius) });
+  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    params.set("latitude", String(latitude));
+    params.set("longitude", String(longitude));
+  }
+  return API.get(`/location/nearby?${params.toString()}`);
+};
+export const updateLocationVisibility = (locationMode) => API.put("/location/visibility", { locationMode });
+
 // Posts
 export const createPost = (data) => API.post("/posts", data);
 export const getGlobalFeed = (page = 1, limit = 10) => PUBLIC_API.get(`/posts/global?page=${page}&limit=${limit}`);

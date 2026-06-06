@@ -22,6 +22,7 @@ import LiveStream from "./pages/LiveStream";
 import WatchLive from "./pages/WatchLive";
 import Events from "./pages/Events";
 import Settings from "./pages/Settings";
+import Nearby from "./pages/Nearby";
 import GlobalExperience from "./components/GlobalExperience";
 
 const MotionDiv = motion.div;
@@ -80,6 +81,7 @@ function AnimatedRoutes() {
             <Route path="/watch-live" element={<ProtectedRoute><WatchLive /></ProtectedRoute>} />
             <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/nearby" element={<ProtectedRoute><Nearby /></ProtectedRoute>} />
           </Routes>
         </MotionDiv>
       </AnimatePresence>

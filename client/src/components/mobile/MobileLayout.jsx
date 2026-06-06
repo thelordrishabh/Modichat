@@ -14,8 +14,8 @@ export default function MobileLayout({ children }) {
     ? [
         { path: "/", icon: "🏠", label: "Home" },
         { path: "/search", icon: "🔍", label: "Search" },
+        { path: "/nearby", icon: "📍", label: "Nearby" },
         { name: "Create", action: () => setIsCreateOpen(true), icon: "➕", label: "Create" },
-        { path: `/profile/${user?._id}`, icon: "👤", label: "Profile" }
       ]
     : [
         { path: "/", icon: "🏠", label: "Home" },

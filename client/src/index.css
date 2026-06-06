@@ -497,3 +497,60 @@
 .animate-modal-enter {
   animation: modal-enter 180ms ease-out forwards;
 }
+
+.radar-empty {
+  position: relative;
+  width: 104px;
+  height: 104px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.radar-ping,
+.radar-dot {
+  position: absolute;
+  border-radius: 999px;
+}
+
+.radar-ping {
+  width: 42px;
+  height: 42px;
+  border: 2px solid rgba(236, 72, 153, 0.72);
+  animation: radar-ping 1.8s ease-out infinite;
+}
+
+.radar-ping-b {
+  animation-delay: 0.6s;
+}
+
+.radar-ping-c {
+  animation-delay: 1.2s;
+}
+
+.radar-dot {
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  box-shadow: 0 0 28px rgba(236, 72, 153, 0.85), 0 0 50px rgba(56, 189, 248, 0.45);
+}
+
+.nearby-slider {
+  height: 28px;
+}
+
+.nearby-slider::-webkit-slider-thumb {
+  min-height: 22px;
+  min-width: 22px;
+}
+
+@keyframes radar-ping {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}

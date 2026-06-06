@@ -48,6 +48,7 @@ export default function Layout({ children }) {
     ? [
         { name: "Home", path: "/", icon: "🏠" },
         { name: "Search", path: "/search", icon: "🔍" },
+        { name: "Nearby", path: "/nearby", icon: "📍" },
         { name: "Trending", path: "/trending", icon: "🔥" },
         { name: "Events", path: "/events", icon: "📅" },
         { name: "Notifications", path: "/notifications", icon: "🔔", badge: unreadCount },
@@ -63,8 +64,8 @@ export default function Layout({ children }) {
     ? [
         { name: "Home", path: "/", icon: "🏠" },
         { name: "Search", path: "/search", icon: "🔍" },
+        { name: "Nearby", path: "/nearby", icon: "📍" },
         { name: "Create", action: () => setIsCreateOpen(true), icon: "➕" },
-        { name: "Events", path: "/events", icon: "📅" },
         { name: "Profile", path: `/profile/${user?._id}`, icon: "👤" }
       ]
     : guestMobileNavItems;

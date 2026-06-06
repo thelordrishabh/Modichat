@@ -22,6 +22,7 @@ const hashtagsRoutes = require('./routes/hashtags');
 const badgesRoutes = require('./routes/badges');
 const tipsRoutes = require('./routes/tips');
 const utilsRoutes = require('./routes/utils');
+const locationRoutes = require('./routes/location');
 
 const app = express();
 const isVercel = Boolean(process.env.VERCEL);
@@ -180,6 +181,7 @@ app.use('/api/hashtags', hashtagsRoutes);
 app.use('/api/badges', badgesRoutes);
 app.use('/api/tips', tipsRoutes);
 app.use('/api/utils', utilsRoutes);
+app.use('/api/location', locationRoutes);
 
 app.use((err, req, res, next) => {
   console.error('Express error:', err);
@@ -219,6 +221,7 @@ const startServer = (port) => {
     io.on('connection', (socket) => {
       socket.on('user:join', (userId) => {
         if (!userId) return;
+        socket.data.userId = userId;
         socket.join(`user:${userId}`);
         io.emit('presence:update', { userId, online: true });
       });
@@ -255,6 +258,29 @@ const startServer = (port) => {
       socket.on('stream-message', ({ streamId, message }) => {
         if (!streamId) return;
         io.to(`stream:${streamId}`).emit('stream-message', message);
+      });
+
+      socket.on('disconnect', async () => {
+        const userId = socket.data.userId;
+        if (!userId) return;
+        io.emit('presence:update', { userId, online: false });
+        io.emit('location:leave', { userId });
+        try {
+          const User = require('./models/User');
+          await User.findByIdAndUpdate(userId, {
+            $set: {
+              locationVisible: false,
+              locationMode: 'off',
+              location: {
+                type: 'Point',
+                coordinates: [0, 0],
+                lastUpdated: null
+              }
+            }
+          });
+        } catch (err) {
+          console.warn(`Location cleanup failed for ${userId}: ${err.message}`);
+        }
       });
     });
 

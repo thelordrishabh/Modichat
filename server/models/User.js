@@ -14,6 +14,30 @@ const UserSchema = new mongoose.Schema({
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
   blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number],
+      default: [0, 0]
+    },
+    lastUpdated: {
+      type: Date,
+      default: null
+    }
+  },
+  locationVisible: {
+    type: Boolean,
+    default: false
+  },
+  locationMode: {
+    type: String,
+    enum: ['everyone', 'friends', 'off'],
+    default: 'off'
+  },
   isPrivate: { type: Boolean, default: false },
   followRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   profileViews: [{
@@ -31,5 +55,7 @@ const UserSchema = new mongoose.Schema({
   subscriptionPrice: { type: Number, default: 0, min: 0 },
   subscribers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 }, { timestamps: true });
+
+UserSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('User', UserSchema);

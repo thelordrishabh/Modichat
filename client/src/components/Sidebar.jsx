@@ -18,6 +18,7 @@ export default function Sidebar({ onCreatePost, unreadMessages = 0 }) {
     ? [
         { name: "Home", path: "/", icon: "🏠" },
         { name: "Search", path: "/search", icon: "🔍" },
+        { name: "Nearby", path: "/nearby", icon: "📍" },
         { name: "Trending", path: "/trending", icon: "🔥" },
         { name: "Events", path: "/events", icon: "📅" },
         { name: "Notifications", path: "/notifications", icon: "🔔", badge: unreadCount },
