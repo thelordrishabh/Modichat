@@ -4,9 +4,15 @@ This file records the current locked production deployment and the steps to rest
 
 ## Current locked production deployment
 
+- Deployment ID: `dpl_B9m5iyVyeq695ncxSHWp44d72io6`
+- Deployment URL: `https://modichat-5y4da5u7l-rishabhsinghrs2123003-9716s-projects.vercel.app`
+- Production alias: `https://modichat.vercel.app`
+- Restored snapshot created: Tue May 26 2026 22:45:30 GMT+0530
+
+## Previous locked production deployment
+
 - Deployment ID: `dpl_4TcHiVtadUa6sudQ9gNpWGDoKQmA`
 - Deployment URL: `https://modichat-5th9u500o-rishabhsinghrs2123003-9716s-projects.vercel.app`
-- Production alias: `https://modichat.vercel.app`
 - Restored snapshot created: Sat Jun 06 2026 12:43:04 GMT+0530
 
 ## What "locking deployment" means

@@ -11,49 +11,32 @@ createRoot(document.getElementById('root')).render(
 
 if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
-    if (import.meta.env.DEV) {
+    const removeServiceWorkers = async () => {
       try {
         const registrations = await navigator.serviceWorker.getRegistrations();
+        const hadRegistrations = registrations.length > 0;
+
         await Promise.all(registrations.map((registration) => registration.unregister()));
         if (window.caches) {
           const keys = await window.caches.keys();
           await Promise.all(keys.map((key) => window.caches.delete(key)));
         }
+
+        return hadRegistrations;
       } catch (err) {
         console.error("Service worker cleanup failed:", err);
       }
+      return false;
+    };
+
+    if (import.meta.env.DEV) {
+      await removeServiceWorkers();
       return;
     }
 
-    let refreshing = false;
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (refreshing) return;
-      refreshing = true;
+    const removed = await removeServiceWorkers();
+    if (removed && navigator.serviceWorker.controller) {
       window.location.reload();
-    });
-
-    navigator.serviceWorker
-      .register("/sw.js", { updateViaCache: "none" })
-      .then((registration) => {
-        registration.update();
-
-        if (registration.waiting) {
-          registration.waiting.postMessage({ type: "SKIP_WAITING" });
-        }
-
-        registration.addEventListener("updatefound", () => {
-          const newWorker = registration.installing;
-          if (!newWorker) return;
-
-          newWorker.addEventListener("statechange", () => {
-            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-              newWorker.postMessage({ type: "SKIP_WAITING" });
-            }
-          });
-        });
-      })
-      .catch((err) => {
-        console.error("Service worker registration failed:", err);
-      });
+    }
   });
 }

@@ -1,12 +1,11 @@
-const CACHE_NAME = "modichat-shell-v4";
-const SHELL_ASSETS = ["/manifest.json", "/favicon.svg"];
+const CACHE_NAME = "modichat-static-v6";
+const STATIC_ASSETS = ["/manifest.json", "/favicon.svg"];
 
-// Pre-cache the app shell on install so offline fallback works
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(SHELL_ASSETS))
+      .then((cache) => cache.addAll(STATIC_ASSETS))
       .then(() => self.skipWaiting())
   );
 });
@@ -34,23 +33,30 @@ self.addEventListener("message", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // Only handle GET requests
   if (event.request.method !== "GET") return;
-
-  // Skip API calls — always go network-first for data
   if (event.request.url.includes("/api/")) return;
 
   if (event.request.mode === "navigate") {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match("/index.html"))
-    );
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  const requestUrl = new URL(event.request.url);
+  const isBuildAsset =
+    requestUrl.origin === self.location.origin &&
+    (requestUrl.pathname === "/index.html" ||
+      requestUrl.pathname.startsWith("/assets/") ||
+      requestUrl.pathname.endsWith(".js") ||
+      requestUrl.pathname.endsWith(".css"));
+
+  if (isBuildAsset) {
+    event.respondWith(fetch(event.request));
     return;
   }
 
   event.respondWith(
     fetch(event.request)
         .then((networkResponse) => {
-          // Cache same-origin responses
           if (
             networkResponse.ok &&
             event.request.url.startsWith(self.location.origin)
